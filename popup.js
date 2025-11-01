@@ -7,27 +7,60 @@
 // 載入已保存的設定
 document.addEventListener('DOMContentLoaded', async () => {
   const settings = await chrome.storage.sync.get({
+    translationEngine: 'google',
     ollamaUrl: 'http://localhost:11434',
     model: 'gpt-oss:20b',
-    targetLanguage: '繁體中文'
+    readingLanguage: '繁體中文',  // 閱讀翻譯：網頁→中文
+    writingLanguage: 'English'    // 輸入翻譯：中文→英文
   });
 
+  document.getElementById('translationEngine').value = settings.translationEngine;
   document.getElementById('ollamaUrl').value = settings.ollamaUrl;
   document.getElementById('model').value = settings.model;
-  document.getElementById('targetLanguage').value = settings.targetLanguage;
+  document.getElementById('readingLanguage').value = settings.readingLanguage;
+  document.getElementById('writingLanguage').value = settings.writingLanguage;
+
+  // 根據引擎顯示/隱藏 Ollama 設定
+  toggleOllamaSettings(settings.translationEngine);
 });
+
+// 監聽引擎切換
+document.getElementById('translationEngine').addEventListener('change', (e) => {
+  toggleOllamaSettings(e.target.value);
+});
+
+/**
+ * 根據選擇的引擎顯示/隱藏 Ollama 設定
+ */
+function toggleOllamaSettings(engine) {
+  const ollamaSettings = document.getElementById('ollamaSettings');
+  const testBtn = document.getElementById('testBtn');
+
+  if (engine === 'ollama') {
+    ollamaSettings.style.display = 'block';
+    testBtn.style.display = 'block';
+  } else {
+    ollamaSettings.style.display = 'none';
+    testBtn.style.display = 'none';
+  }
+}
 
 // 儲存設定
 document.getElementById('saveBtn').addEventListener('click', async () => {
   const settings = {
+    translationEngine: document.getElementById('translationEngine').value,
     ollamaUrl: document.getElementById('ollamaUrl').value,
     model: document.getElementById('model').value,
-    targetLanguage: document.getElementById('targetLanguage').value
+    readingLanguage: document.getElementById('readingLanguage').value,
+    writingLanguage: document.getElementById('writingLanguage').value
   };
 
   try {
     await chrome.storage.sync.set(settings);
-    showStatus('設定已儲存！', 'success');
+    const engine = settings.translationEngine === 'google' ? 'Google Translate' : 'Ollama';
+    showStatus(`設定已儲存！
+閱讀→${settings.readingLanguage}
+輸入→${settings.writingLanguage}`, 'success');
   } catch (error) {
     showStatus('儲存失敗: ' + error.message, 'error');
   }

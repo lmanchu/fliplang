@@ -14,6 +14,14 @@ console.log('[Iris Translate] Content script loaded');
 let isTranslating = false;
 let translationCache = new Map();
 
+// Hover 翻譯狀態
+let hoveredElement = null;
+let isHoverTranslationActive = false;
+
+// 輸入增強狀態
+let spacePressTimes = [];
+let currentInputElement = null;
+
 // 監聽來自 background 的消息
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   console.log('[Content] Message received:', request);
@@ -121,27 +129,59 @@ async function handlePageTranslation() {
 
 /**
  * 請求翻譯
+ * @param {string} text - 要翻譯的文字
+ * @param {string} mode - 翻譯模式：'reading'（閱讀）或 'writing'（輸入）
  */
-async function requestTranslation(text) {
+async function requestTranslation(text, mode = 'reading') {
   // 檢查緩存
-  if (translationCache.has(text)) {
+  const cacheKey = `${mode}:${text}`;
+  if (translationCache.has(cacheKey)) {
     console.log('[Content] Cache hit:', text.substring(0, 50));
-    return translationCache.get(text);
+    return translationCache.get(cacheKey);
   }
 
+  // 獲取語言設定
+  const settings = await chrome.storage.sync.get({
+    readingLanguage: '繁體中文',  // 閱讀翻譯
+    writingLanguage: 'English'    // 輸入翻譯
+  });
+
+  // 根據模式選擇目標語言
+  const targetLang = mode === 'writing'
+    ? settings.writingLanguage
+    : settings.readingLanguage;
+
+  console.log(`[Content] Translation mode: ${mode}, target: ${targetLang}`);
+
   return new Promise((resolve, reject) => {
-    chrome.runtime.sendMessage(
-      { action: 'translate', text },
-      (response) => {
-        if (response && response.success) {
-          // 緩存結果
-          translationCache.set(text, response.translation);
-          resolve(response.translation);
-        } else {
-          reject(new Error(response?.error || 'Translation failed'));
+    try {
+      chrome.runtime.sendMessage(
+        {
+          action: 'translate',
+          text,
+          targetLang  // 傳遞目標語言
+        },
+        (response) => {
+          // 檢查 Extension context 是否有效
+          if (chrome.runtime.lastError) {
+            console.error('[Content] Chrome runtime error:', chrome.runtime.lastError);
+            reject(new Error('Extension 已重新載入，請刷新頁面 (Cmd+R)'));
+            return;
+          }
+
+          if (response && response.success) {
+            // 緩存結果（包含模式）
+            translationCache.set(cacheKey, response.translation);
+            resolve(response.translation);
+          } else {
+            reject(new Error(response?.error || 'Translation failed'));
+          }
         }
-      }
-    );
+      );
+    } catch (error) {
+      console.error('[Content] Send message error:', error);
+      reject(new Error('Extension 已重新載入，請刷新頁面 (Cmd+R)'));
+    }
   });
 }
 
@@ -340,3 +380,303 @@ document.addEventListener('click', (e) => {
     tooltip.remove();
   }
 });
+
+/**
+ * ============================================
+ * Hover 翻譯功能
+ * ============================================
+ */
+
+// 監聽滑鼠移動以追蹤 hover 的元素
+let lastLoggedElement = null;
+document.addEventListener('mousemove', (e) => {
+  // 找到最接近的段落元素
+  const element = e.target.closest('p, div, span, h1, h2, h3, h4, h5, h6, li, td, th, blockquote, pre');
+
+  if (element && !element.classList.contains('iris-translation-container') &&
+      !element.classList.contains('iris-tooltip') &&
+      !element.classList.contains('iris-notification')) {
+
+    // 只在元素改變時記錄，避免過多日誌
+    if (element !== lastLoggedElement) {
+      console.log('[Content] Hovered element:', element.tagName, element.textContent.substring(0, 30) + '...');
+      lastLoggedElement = element;
+    }
+
+    hoveredElement = element;
+  }
+});
+
+// 監聽 Ctrl 鍵按下
+document.addEventListener('keydown', async (e) => {
+  // 只監聽單獨的 Ctrl 鍵（不含其他修飾鍵）
+  // Windows/Linux: Ctrl, Mac: Cmd (Meta)
+  const isCtrlOnly = (e.key === 'Control' && e.ctrlKey && !e.shiftKey && !e.altKey && !e.metaKey);
+  const isCmdOnly = (e.key === 'Meta' && e.metaKey && !e.shiftKey && !e.altKey && !e.ctrlKey);
+
+  if ((isCtrlOnly || isCmdOnly) && hoveredElement && !isHoverTranslationActive) {
+    console.log('[Content] Ctrl/Cmd pressed, hoveredElement:', hoveredElement);
+    e.preventDefault();
+    await handleHoverTranslation();
+  }
+});
+
+/**
+ * 處理 Hover 翻譯
+ */
+async function handleHoverTranslation() {
+  if (!hoveredElement) {
+    showNotification('請將滑鼠移到要翻譯的段落上', 'warning');
+    return;
+  }
+
+  // 檢查是否已經被翻譯過
+  if (hoveredElement.classList.contains('iris-hover-translated')) {
+    showNotification('此段落已翻譯', 'info');
+    return;
+  }
+
+  const originalText = hoveredElement.textContent.trim();
+
+  if (!originalText || originalText.length < 5) {
+    showNotification('文字太短，無法翻譯', 'warning');
+    return;
+  }
+
+  console.log('[Content] Hover translation for:', originalText.substring(0, 50));
+
+  isHoverTranslationActive = true;
+
+  // 顯示載入狀態
+  hoveredElement.style.opacity = '0.6';
+  showNotification('正在翻譯...', 'info');
+
+  try {
+    // 分割成句子
+    const sentences = splitIntoSentences(originalText);
+    console.log('[Content] Split into sentences:', sentences.length);
+
+    // 翻譯每個句子
+    const translations = [];
+    for (const sentence of sentences) {
+      if (sentence.trim().length > 0) {
+        const translation = await requestTranslation(sentence);
+        translations.push(translation);
+      } else {
+        translations.push('');
+      }
+    }
+
+    // 顯示雙語對照
+    displaySentenceBySentence(hoveredElement, sentences, translations);
+
+    showNotification('翻譯完成', 'success');
+  } catch (error) {
+    console.error('[Content] Hover translation failed:', error);
+    hoveredElement.style.opacity = '1';
+    showNotification('翻譯失敗: ' + error.message, 'error');
+  } finally {
+    isHoverTranslationActive = false;
+  }
+}
+
+/**
+ * 分割文字為句子
+ * 支援中文、英文等多語言
+ */
+function splitIntoSentences(text) {
+  // 移除多餘空白
+  text = text.trim();
+
+  // 使用正則表達式分割句子
+  // 支援：. ! ? 。！？以及換行
+  const sentenceEnders = /([.!?。！？]+[\s]*|[\n]+)/g;
+
+  const parts = text.split(sentenceEnders);
+  const sentences = [];
+
+  for (let i = 0; i < parts.length; i += 2) {
+    const sentence = parts[i];
+    const ender = parts[i + 1] || '';
+
+    if (sentence && sentence.trim().length > 0) {
+      sentences.push((sentence + ender).trim());
+    }
+  }
+
+  // 如果沒有分割成功，返回整段
+  if (sentences.length === 0) {
+    return [text];
+  }
+
+  return sentences;
+}
+
+/**
+ * 顯示句子逐句翻譯
+ */
+function displaySentenceBySentence(element, originalSentences, translatedSentences) {
+  // 標記為已翻譯
+  element.classList.add('iris-hover-translated');
+
+  // 清空原始內容
+  element.innerHTML = '';
+  element.style.opacity = '1';
+
+  // 為每個句子創建雙語對照
+  for (let i = 0; i < originalSentences.length; i++) {
+    const sentenceContainer = document.createElement('span');
+    sentenceContainer.className = 'iris-sentence-container';
+
+    // 原文
+    const originalSpan = document.createElement('span');
+    originalSpan.className = 'iris-sentence-original';
+    originalSpan.textContent = originalSentences[i];
+
+    // 譯文
+    const translatedSpan = document.createElement('span');
+    translatedSpan.className = 'iris-sentence-translated';
+    translatedSpan.textContent = translatedSentences[i] || '';
+
+    sentenceContainer.appendChild(originalSpan);
+    sentenceContainer.appendChild(translatedSpan);
+
+    element.appendChild(sentenceContainer);
+
+    // 句子之間加空格
+    if (i < originalSentences.length - 1) {
+      element.appendChild(document.createTextNode(' '));
+    }
+  }
+}
+
+/**
+ * ============================================
+ * 輸入增強功能 - 三下空格翻譯
+ * ============================================
+ */
+
+// 監聽所有輸入框的焦點
+document.addEventListener('focusin', (e) => {
+  const element = e.target;
+
+  // 檢查是否為輸入框或可編輯元素
+  if (element.tagName === 'INPUT' ||
+      element.tagName === 'TEXTAREA' ||
+      element.isContentEditable) {
+    currentInputElement = element;
+    console.log('[Content] Input element focused:', element.tagName);
+  }
+});
+
+// 監聽焦點離開
+document.addEventListener('focusout', (e) => {
+  if (e.target === currentInputElement) {
+    currentInputElement = null;
+    spacePressTimes = [];
+  }
+});
+
+// 監聽輸入框中的按鍵
+document.addEventListener('keydown', async (e) => {
+  // 只處理空格鍵，且必須在輸入框中
+  if (e.key === ' ' && currentInputElement) {
+    const now = Date.now();
+
+    // 記錄空格按下時間
+    spacePressTimes.push(now);
+
+    // 只保留最近3次的時間戳
+    if (spacePressTimes.length > 3) {
+      spacePressTimes.shift();
+    }
+
+    // 檢查是否在 500ms 內按了三次空格
+    if (spacePressTimes.length === 3) {
+      const firstPress = spacePressTimes[0];
+      const lastPress = spacePressTimes[2];
+      const timeDiff = lastPress - firstPress;
+
+      console.log('[Content] Three spaces detected, time diff:', timeDiff + 'ms');
+
+      // 如果三次空格在 500ms 內
+      if (timeDiff < 500) {
+        e.preventDefault(); // 阻止最後一個空格輸入
+
+        // 清除記錄
+        spacePressTimes = [];
+
+        // 執行翻譯
+        await handleInputTranslation();
+      }
+    }
+  }
+});
+
+/**
+ * 處理輸入框翻譯
+ */
+async function handleInputTranslation() {
+  if (!currentInputElement) {
+    return;
+  }
+
+  // 獲取輸入框內容
+  let text = '';
+  let isContentEditable = false;
+
+  if (currentInputElement.isContentEditable) {
+    text = currentInputElement.textContent || '';
+    isContentEditable = true;
+  } else {
+    text = currentInputElement.value || '';
+  }
+
+  // 移除末尾的空格（可能有1-2個空格已經輸入）
+  text = text.trimEnd();
+
+  if (!text || text.length < 2) {
+    showNotification('輸入文字太短，無法翻譯', 'warning');
+    return;
+  }
+
+  console.log('[Content] Translating input:', text.substring(0, 50));
+
+  // 顯示翻譯中狀態
+  showNotification('正在翻譯輸入...', 'info');
+
+  try {
+    // 翻譯文字（使用 'writing' 模式）
+    const translation = await requestTranslation(text, 'writing');
+
+    // 替換輸入框內容
+    if (isContentEditable) {
+      currentInputElement.textContent = translation;
+
+      // 將光標移到末尾
+      const range = document.createRange();
+      const sel = window.getSelection();
+      range.selectNodeContents(currentInputElement);
+      range.collapse(false);
+      sel.removeAllRanges();
+      sel.addRange(range);
+    } else {
+      currentInputElement.value = translation;
+
+      // 將光標移到末尾
+      currentInputElement.selectionStart = translation.length;
+      currentInputElement.selectionEnd = translation.length;
+    }
+
+    // 觸發 input 事件（某些網站需要）
+    currentInputElement.dispatchEvent(new Event('input', { bubbles: true }));
+    currentInputElement.dispatchEvent(new Event('change', { bubbles: true }));
+
+    showNotification('✓ 翻譯完成', 'success');
+
+    console.log('[Content] Input translation successful');
+  } catch (error) {
+    console.error('[Content] Input translation failed:', error);
+    showNotification('翻譯失敗: ' + error.message, 'error');
+  }
+}

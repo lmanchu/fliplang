@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Iris Immersive Translate",
-  "version": "1.0.0",
-  "description": "沉浸式翻譯 - 使用 Ollama 本地模型進行網頁翻譯",
+  "version": "1.1.0",
+  "description": "沉浸式翻譯 - 支援 Google Translate 與 Ollama 雙引擎，Hover 翻譯與輸入增強",
   "permissions": [
     "activeTab",
     "storage",

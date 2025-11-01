@@ -162,23 +162,34 @@
 <body>
   <div class="container">
     <h1>🌐 Iris Immersive Translate</h1>
-    <p class="subtitle">使用 Ollama 本地模型進行網頁翻譯</p>
+    <p class="subtitle">本地化隱私翻譯工具</p>
 
     <div class="form-group">
-      <label for="ollamaUrl">Ollama API 端點</label>
-      <input type="text" id="ollamaUrl" placeholder="http://localhost:11434">
-      <div class="hint">通常是 http://localhost:11434</div>
+      <label for="translationEngine">翻譯引擎</label>
+      <select id="translationEngine">
+        <option value="google">Google Translate（快速，推薦）</option>
+        <option value="ollama">Ollama 本地模型（隱私，慢）</option>
+      </select>
+      <div class="hint">預設使用 Google Translate，速度快且免費</div>
+    </div>
+
+    <div id="ollamaSettings" style="display: none;">
+      <div class="form-group">
+        <label for="ollamaUrl">Ollama API 端點</label>
+        <input type="text" id="ollamaUrl" placeholder="http://localhost:11434">
+        <div class="hint">通常是 http://localhost:11434</div>
+      </div>
+
+      <div class="form-group">
+        <label for="model">Ollama 模型</label>
+        <input type="text" id="model" placeholder="gpt-oss:20b">
+        <div class="hint">例如: gpt-oss:20b, qwen2.5vl:3b, llama3.3</div>
+      </div>
     </div>
 
     <div class="form-group">
-      <label for="model">Ollama 模型</label>
-      <input type="text" id="model" placeholder="gpt-oss:20b">
-      <div class="hint">例如: gpt-oss:20b, qwen2.5vl:3b, llama3.3</div>
-    </div>
-
-    <div class="form-group">
-      <label for="targetLanguage">目標語言</label>
-      <select id="targetLanguage">
+      <label for="readingLanguage">閱讀翻譯（網頁 → 翻譯成）</label>
+      <select id="readingLanguage">
         <option value="繁體中文">繁體中文</option>
         <option value="简体中文">簡體中文</option>
         <option value="English">English</option>
@@ -188,6 +199,22 @@
         <option value="Français">Français</option>
         <option value="Deutsch">Deutsch</option>
       </select>
+      <div class="hint">將網頁內容翻譯成此語言</div>
+    </div>
+
+    <div class="form-group">
+      <label for="writingLanguage">輸入翻譯（輸入 → 翻譯成）</label>
+      <select id="writingLanguage">
+        <option value="English">English</option>
+        <option value="繁體中文">繁體中文</option>
+        <option value="简体中文">簡體中文</option>
+        <option value="日本語">日本語</option>
+        <option value="한국어">한국어</option>
+        <option value="Español">Español</option>
+        <option value="Français">Français</option>
+        <option value="Deutsch">Deutsch</option>
+      </select>
+      <div class="hint">將你的輸入翻譯成此語言（三下空格）</div>
     </div>
 
     <div class="button-group">
@@ -200,6 +227,14 @@
     <div class="shortcuts">
       <h3>⌨️ 快捷鍵</h3>
       <div class="shortcut-item">
+        <span>Hover 翻譯（閱讀）</span>
+        <span class="shortcut-key">Ctrl (Cmd)</span>
+      </div>
+      <div class="shortcut-item">
+        <span>輸入翻譯（寫作）</span>
+        <span class="shortcut-key">空格×3</span>
+      </div>
+      <div class="shortcut-item">
         <span>翻譯選取文字</span>
         <span class="shortcut-key">Alt+T</span>
       </div>
@@ -208,7 +243,7 @@
         <span class="shortcut-key">Alt+Shift+T</span>
       </div>
       <div style="margin-top: 12px; font-size: 11px; color: #999;">
-        可在 chrome://extensions/shortcuts 自訂
+        Alt 快捷鍵可在 chrome://extensions/shortcuts 自訂
       </div>
     </div>
   </div>

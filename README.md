@@ -5,20 +5,24 @@
 [![Made with Ollama](https://img.shields.io/badge/Made%20with-Ollama-black?logo=ai&logoColor=white)](https://ollama.com)
 [![GitHub Stars](https://img.shields.io/github/stars/lmanchu/iris-immersive-translate?style=social)](https://github.com/lmanchu/iris-immersive-translate/stargazers)
 
-**沉浸式翻譯 - 使用 Ollama 本地模型進行網頁翻譯**
+**沉浸式翻譯 - 支援 Google Translate 與 Ollama 雙引擎**
 
-一個強大的 Chrome Extension，利用 Ollama 本地 LLM 提供隱私保護的網頁翻譯功能。
+一個強大的 Chrome Extension，支援快速的 Google Translate 和隱私的 Ollama 本地 LLM 雙翻譯引擎。
 
 ---
 
 ## ✨ 特色功能
 
-### 🔒 隱私優先
-- ✅ **完全本地運行**：所有翻譯在你的電腦上進行
-- ✅ **無數據上傳**：不會將任何內容發送到雲端
-- ✅ **完全免費**：使用 Ollama 本地模型，無需 API 費用
+### 🔒 雙引擎支援
+- ⚡ **Google Translate**：快速、免費、高品質（預設推薦）
+- 🔐 **Ollama 本地模型**：完全隱私、離線可用、可自訂
+- 🎯 **自由切換**：在設定中一鍵切換翻譯引擎
 
 ### 🎯 翻譯方式
+- **Hover 翻譯**：將滑鼠移到段落上，按 `Ctrl`（Mac 用 `Cmd`）即時翻譯 ⭐ **新功能**
+  - 自動句子分割，逐句顯示雙語對照
+  - 不需要選取文字，直接 hover 即可
+  - 類似沉浸式翻譯的使用體驗
 - **選取翻譯**：選擇文字後按 `Alt+T`（所有平台）
 - **整頁翻譯**：按 `Alt+Shift+T` 翻譯整個網頁
 - **雙語對照**：原文和譯文並排顯示，保持排版
@@ -161,13 +165,27 @@ ollama serve
 
 ## 🎯 使用方法
 
-### 方法 1: 選取翻譯
+### 方法 1: Hover 翻譯 ⭐ **推薦**
+
+1. 將滑鼠移到任何段落上
+2. 按住 `Ctrl` 鍵（Mac 上按 `Cmd` 鍵）
+3. 段落會自動分割成句子並逐句顯示雙語對照
+4. 每個句子的譯文會顯示在原文下方，帶有紫色標記
+
+**特點：**
+- 🎯 不需要選取文字，直接 hover 即可
+- 📝 自動句子分割（支援中英文標點）
+- 🎨 即時顯示，保持網頁排版
+- 💾 翻譯結果會被緩存，相同內容不會重複翻譯
+- ⚡ **使用 Google Translate 速度極快！**
+
+### 方法 2: 選取翻譯
 
 1. 在任何網頁上選取文字
 2. 按 `Alt+T`（所有平台）
 3. 翻譯結果會以工具提示框顯示在選取文字旁
 
-### 方法 2: 整頁翻譯
+### 方法 3: 整頁翻譯
 
 1. 在任何網頁上按 `Alt+Shift+T`（所有平台）
 2. 等待翻譯完成

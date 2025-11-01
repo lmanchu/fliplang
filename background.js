@@ -35,15 +35,21 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   console.log('[Background] Message received:', request);
 
   if (request.action === 'translate') {
-    // 調用 Ollama API 進行翻譯
-    translateText(request.text, request.targetLang)
-      .then(translation => {
-        sendResponse({ success: true, translation });
-      })
-      .catch(error => {
-        console.error('[Background] Translation error:', error);
-        sendResponse({ success: false, error: error.message });
-      });
+    // 根據用戶設定選擇翻譯引擎
+    chrome.storage.sync.get({ translationEngine: 'google' }, (settings) => {
+      const translateFn = settings.translationEngine === 'ollama'
+        ? translateWithOllama
+        : translateWithGoogle;
+
+      translateFn(request.text, request.targetLang)
+        .then(translation => {
+          sendResponse({ success: true, translation });
+        })
+        .catch(error => {
+          console.error('[Background] Translation error:', error);
+          sendResponse({ success: false, error: error.message });
+        });
+    });
 
     // 返回 true 表示會異步發送響應
     return true;
@@ -51,9 +57,54 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 });
 
 /**
- * 調用 Ollama API 進行翻譯
+ * 使用 Google Translate API 進行翻譯（免費）
  */
-async function translateText(text, targetLang = '繁體中文') {
+async function translateWithGoogle(text, targetLang = '繁體中文') {
+  // 語言代碼映射（匹配 popup.html 中的選項值）
+  const langCodeMap = {
+    '繁體中文': 'zh-TW',
+    '简体中文': 'zh-CN',
+    'English': 'en',
+    '日本語': 'ja',
+    '한국어': 'ko',
+    'Français': 'fr',
+    'Deutsch': 'de',
+    'Español': 'es'
+  };
+
+  const targetCode = langCodeMap[targetLang] || 'zh-TW';
+
+  console.log('[Background] Translating with Google:', text.substring(0, 50));
+  console.log('[Background] Target language:', targetLang, '→', targetCode);
+
+  try {
+    // 使用 Google Translate 的免費 API endpoint
+    const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=${targetCode}&dt=t&q=${encodeURIComponent(text)}`;
+
+    const response = await fetch(url);
+
+    if (!response.ok) {
+      throw new Error(`Google Translate API error: ${response.status}`);
+    }
+
+    const data = await response.json();
+
+    // Google Translate API 返回的格式: [[[翻譯文字, 原文, null, null, 10]], ...]
+    // 提取所有翻譯片段並拼接
+    const translations = data[0].map(item => item[0]).join('');
+
+    console.log('[Background] Google translation successful');
+    return translations;
+  } catch (error) {
+    console.error('[Background] Google Translate error:', error);
+    throw error;
+  }
+}
+
+/**
+ * 使用 Ollama API 進行翻譯
+ */
+async function translateWithOllama(text, targetLang = '繁體中文') {
   const settings = await chrome.storage.sync.get({
     ollamaUrl: 'http://localhost:11434',
     model: 'gpt-oss:20b',
@@ -112,9 +163,11 @@ chrome.runtime.onInstalled.addListener(() => {
 
   // 設置默認配置
   chrome.storage.sync.set({
+    translationEngine: 'google',  // 預設使用 Google Translate（快速）
     ollamaUrl: 'http://localhost:11434',
     model: 'gpt-oss:20b',
-    targetLanguage: '繁體中文',
+    readingLanguage: '繁體中文',  // 閱讀翻譯：網頁→中文
+    writingLanguage: 'English',   // 輸入翻譯：中文→英文
     enabled: true
   });
 });

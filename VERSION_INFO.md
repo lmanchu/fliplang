@@ -2,17 +2,17 @@
 
 ## Current Version
 
-**Version:** 1.0.0
+**Version:** 1.1.0
 **Release Date:** 2025-11-01
 **Status:** Stable Release
-**Code Name:** "Iris Initial"
+**Code Name:** "Velocity Boost"
 
 ---
 
 ## Version Details
 
 ### Manifest Version
-- **manifest.json:** `"version": "1.0.0"`
+- **manifest.json:** `"version": "1.1.0"`
 - **Manifest V3:** Chrome Extension API version
 
 ### Supported Platforms
@@ -23,9 +23,11 @@
 - ⚠️ Firefox (requires Manifest V2 adaptation)
 
 ### System Requirements
-- **Ollama:** Latest version
-- **Recommended Models:** gpt-oss:20b, llama3.3, qwen2.5, gemma2
-- **RAM:** 8GB+ recommended
+- **Translation Engine:**
+  - Google Translate: No requirements (default, fast)
+  - Ollama: Latest version (optional, privacy)
+- **Recommended Models (Ollama):** gpt-oss:20b, llama3.3, qwen2.5, gemma2
+- **RAM:** 8GB+ recommended (for Ollama)
 - **OS:** macOS, Linux, Windows
 
 ---
@@ -33,9 +35,10 @@
 ## Dependencies
 
 ### Runtime Dependencies
-- **Ollama:** Latest version
+- **Google Translate API:** Free public endpoint (no API key required)
+- **Ollama (Optional):** Latest version
   - API Endpoint: `http://localhost:11434`
-  - Required CORS configuration
+  - Required CORS configuration (only when using Ollama)
 
 ### Browser APIs Used
 - Chrome Extension Manifest V3
@@ -55,20 +58,24 @@
 
 ```
 iris-immersive-translate/
-├── manifest.json          (v1.0.0)
-├── background.js          (v1.0.0)
-├── content.js             (v1.0.0)
-├── popup.html             (v1.0.0)
-├── popup.js               (v1.0.0)
+├── manifest.json          (v1.1.0)
+├── background.js          (v1.1.0) - Google Translate + Ollama
+├── content.js             (v1.1.0) - Hover + Input enhancement
+├── popup.html             (v1.1.0) - Dual language settings
+├── popup.js               (v1.1.0)
 ├── styles/
-│   └── translate.css      (v1.0.0)
+│   └── translate.css      (v1.1.0) - Sentence-by-sentence styles
 ├── icons/
 │   ├── icon16.png
 │   ├── icon48.png
 │   └── icon128.png
+├── test-hover.html        (v1.1.0) - NEW
+├── test-input.html        (v1.1.0) - NEW
 └── docs/
     ├── README.md
     ├── CHANGELOG.md
+    ├── BILINGUAL-GUIDE.md (v1.1.0) - NEW
+    ├── DEBUG-GUIDE.md     (v1.1.0) - NEW
     ├── LICENSE
     └── ...
 ```
@@ -81,6 +88,7 @@ iris-immersive-translate/
 - **main** (default)
 
 ### Tags
+- `v1.1.0` (2025-11-01) - Latest
 - `v1.0.0` (2025-11-01)
 
 ### Commits
@@ -100,9 +108,11 @@ iris-immersive-translate/
 ### Default Settings
 ```json
 {
+  "translationEngine": "google",
   "ollamaUrl": "http://localhost:11434",
   "model": "gpt-oss:20b",
-  "targetLanguage": "繁體中文",
+  "readingLanguage": "繁體中文",
+  "writingLanguage": "English",
   "enabled": true
 }
 ```
@@ -117,11 +127,18 @@ iris-immersive-translate/
 ## Performance Metrics
 
 ### Translation Speed (Approximate)
+
+**Google Translate (Default):**
+- **Short text (< 100 words):** 0.2-0.5 seconds ⚡
+- **Medium text (100-500 words):** 0.5-1 second ⚡
+- **Full page:** 1-3 seconds ⚡
+
+**Ollama (Optional):**
 - **Short text (< 100 words):** 2-5 seconds
 - **Medium text (100-500 words):** 5-15 seconds
 - **Full page:** Varies by content size
 
-*Note: Speed depends on Ollama model size and hardware*
+*Note: Ollama speed depends on model size and hardware*
 
 ### Resource Usage
 - **Extension Size:** ~50KB (code only)
@@ -132,7 +149,13 @@ iris-immersive-translate/
 
 ## API Compatibility
 
-### Ollama API
+### Google Translate API (Primary)
+- **Endpoint:** `https://translate.googleapis.com/translate_a/single`
+- **Method:** GET
+- **Auth:** None required (free public API)
+- **Auto-detect:** Yes
+
+### Ollama API (Secondary)
 - **Version:** Compatible with Ollama 0.12.8+
 - **Endpoint:** `/api/generate`
 - **Method:** POST
@@ -172,17 +195,12 @@ iris-immersive-translate/
 
 | Date | Version | Type | Description |
 |------|---------|------|-------------|
+| 2025-11-01 | 1.1.0 | Minor | Google Translate, Hover translation, Input enhancement, Dual language |
 | 2025-11-01 | 1.0.0 | Major | Initial release |
 
 ---
 
 ## Next Version Planning
-
-### v1.1.0 (Planned)
-- Floating translation tooltip
-- Translation history
-- Custom keyboard shortcuts
-- UI improvements
 
 ### v1.2.0 (Planned)
 - PDF translation support
@@ -208,4 +226,4 @@ Following [Semantic Versioning 2.0.0](https://semver.org/):
 ---
 
 **Last Updated:** 2025-11-01
-**Next Review:** When preparing v1.1.0 release
+**Next Review:** When preparing v1.2.0 release
