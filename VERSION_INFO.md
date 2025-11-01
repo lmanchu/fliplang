@@ -2,17 +2,17 @@
 
 ## Current Version
 
-**Version:** 1.1.0
+**Version:** 1.1.1
 **Release Date:** 2025-11-01
 **Status:** Stable Release
-**Code Name:** "Velocity Boost"
+**Code Name:** "Hotkey Harmony"
 
 ---
 
 ## Version Details
 
 ### Manifest Version
-- **manifest.json:** `"version": "1.1.0"`
+- **manifest.json:** `"version": "1.1.1"`
 - **Manifest V3:** Chrome Extension API version
 
 ### Supported Platforms
@@ -58,13 +58,13 @@
 
 ```
 iris-immersive-translate/
-├── manifest.json          (v1.1.0)
-├── background.js          (v1.1.0) - Google Translate + Ollama
-├── content.js             (v1.1.0) - Hover + Input enhancement
-├── popup.html             (v1.1.0) - Dual language settings
-├── popup.js               (v1.1.0)
+├── manifest.json          (v1.1.1)
+├── background.js          (v1.1.1) - Google Translate + Ollama
+├── content.js             (v1.1.1) - Hover (Ctrl only) + Input enhancement
+├── popup.html             (v1.1.1) - Dual language settings + updated shortcuts
+├── popup.js               (v1.1.1)
 ├── styles/
-│   └── translate.css      (v1.1.0) - Sentence-by-sentence styles
+│   └── translate.css      (v1.1.1) - Sentence-by-sentence styles
 ├── icons/
 │   ├── icon16.png
 │   ├── icon48.png
@@ -88,7 +88,8 @@ iris-immersive-translate/
 - **main** (default)
 
 ### Tags
-- `v1.1.0` (2025-11-01) - Latest
+- `v1.1.1` (2025-11-01) - Latest
+- `v1.1.0` (2025-11-01)
 - `v1.0.0` (2025-11-01)
 
 ### Commits
@@ -195,6 +196,7 @@ iris-immersive-translate/
 
 | Date | Version | Type | Description |
 |------|---------|------|-------------|
+| 2025-11-01 | 1.1.1 | Patch | Hotkey optimization, Remove Cmd key, Fix manifest format |
 | 2025-11-01 | 1.1.0 | Minor | Google Translate, Hover translation, Input enhancement, Dual language |
 | 2025-11-01 | 1.0.0 | Major | Initial release |
 

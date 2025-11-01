@@ -410,12 +410,11 @@ document.addEventListener('mousemove', (e) => {
 // 監聽 Ctrl 鍵按下
 document.addEventListener('keydown', async (e) => {
   // 只監聽單獨的 Ctrl 鍵（不含其他修飾鍵）
-  // Windows/Linux: Ctrl, Mac: Cmd (Meta)
+  // 注意：macOS 上也使用 Ctrl，而非 Cmd（避免誤觸發）
   const isCtrlOnly = (e.key === 'Control' && e.ctrlKey && !e.shiftKey && !e.altKey && !e.metaKey);
-  const isCmdOnly = (e.key === 'Meta' && e.metaKey && !e.shiftKey && !e.altKey && !e.ctrlKey);
 
-  if ((isCtrlOnly || isCmdOnly) && hoveredElement && !isHoverTranslationActive) {
-    console.log('[Content] Ctrl/Cmd pressed, hoveredElement:', hoveredElement);
+  if (isCtrlOnly && hoveredElement && !isHoverTranslationActive) {
+    console.log('[Content] Ctrl pressed, hoveredElement:', hoveredElement);
     e.preventDefault();
     await handleHoverTranslation();
   }

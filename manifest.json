@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Iris Immersive Translate",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "沉浸式翻譯 - 支援 Google Translate 與 Ollama 雙引擎，Hover 翻譯與輸入增強",
   "permissions": [
     "activeTab",
@@ -47,8 +47,8 @@
     },
     "translate-page": {
       "suggested_key": {
-        "default": "Alt+Shift+T",
-        "mac": "Alt+Shift+T"
+        "default": "Ctrl+Shift+A",
+        "mac": "Ctrl+Shift+A"
       },
       "description": "翻譯整個頁面"
     }

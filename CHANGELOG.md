@@ -17,6 +17,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [ ] 英文文檔
 - [ ] 快捷鍵自訂 UI
 
+## [1.1.1] - 2025-11-01
+
+### Fixed - 快捷鍵優化 🔧
+
+#### 🎯 Hover 翻譯熱鍵改進
+- ✅ **移除 macOS Cmd 鍵**作為 Hover 翻譯觸發鍵
+- ✅ **統一使用 Ctrl 鍵**（所有平台，包括 macOS）
+- ✅ 避免在 macOS 上與系統快捷鍵衝突
+- ✅ 減少誤觸發情況
+
+#### ⌨️ 整頁翻譯快捷鍵變更
+- ✅ 從 `Alt+Shift+T` 改為 `Ctrl+Shift+A`
+- ✅ 修正 Chrome Extension manifest 格式錯誤
+- ✅ 統一所有平台的快捷鍵配置
+- ✅ 更不容易與其他應用程式衝突
+
+### Updated
+- 📝 更新 popup.html 快捷鍵說明
+- 📝 更新 README.md 所有快捷鍵文檔
+- 📝 更新 BILINGUAL-GUIDE.md 功能對照表
+
+### Technical Details
+- 移除 content.js 中的 Cmd (Meta) 鍵檢測
+- 修正 manifest.json 中不支援的 `MacCtrl+Alt+A` 格式
+- 統一快捷鍵為：Ctrl (Hover), Ctrl+Shift+A (整頁)
+
+### Breaking Changes
+- ⚠️ macOS 用戶需要使用 Ctrl 而非 Cmd 進行 Hover 翻譯
+- ⚠️ 整頁翻譯快捷鍵從 `Alt+Shift+T` 改為 `Ctrl+Shift+A`
+
+### Migration Guide
+從 v1.1.0 升級到 v1.1.1：
+1. 重新載入 Extension
+2. 刷新所有使用中的頁面
+3. 適應新的快捷鍵：
+   - Hover 翻譯：只使用 `Ctrl`（不再使用 Cmd）
+   - 整頁翻譯：改用 `Ctrl+Shift+A`
+
 ## [1.1.0] - 2025-11-01
 
 ### Added - 重大功能更新 🎉
@@ -126,6 +164,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 | Version | Date | Key Changes |
 |---------|------|-------------|
+| 1.1.1 | 2025-11-01 | 快捷鍵優化、移除 Cmd 熱鍵、修正 manifest 格式 |
 | 1.1.0 | 2025-11-01 | Google Translate 引擎、Hover 翻譯、輸入增強、雙向語言 |
 | 1.0.0 | 2025-11-01 | Initial release with core translation features |
 
@@ -155,6 +194,7 @@ When releasing a new version:
 
 ---
 
-[Unreleased]: https://github.com/lmanchu/iris-immersive-translate/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/lmanchu/iris-immersive-translate/compare/v1.1.1...HEAD
+[1.1.1]: https://github.com/lmanchu/iris-immersive-translate/compare/v1.1.0...v1.1.1
 [1.1.0]: https://github.com/lmanchu/iris-immersive-translate/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/lmanchu/iris-immersive-translate/releases/tag/v1.0.0
