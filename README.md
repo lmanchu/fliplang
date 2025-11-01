@@ -1,5 +1,10 @@
 # 🌐 Iris Immersive Translate
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Chrome Extension](https://img.shields.io/badge/Chrome-Extension-4285F4?logo=googlechrome&logoColor=white)](https://github.com/lmanchu/iris-immersive-translate)
+[![Made with Ollama](https://img.shields.io/badge/Made%20with-Ollama-black?logo=ai&logoColor=white)](https://ollama.com)
+[![GitHub Stars](https://img.shields.io/github/stars/lmanchu/iris-immersive-translate?style=social)](https://github.com/lmanchu/iris-immersive-translate/stargazers)
+
 **沉浸式翻譯 - 使用 Ollama 本地模型進行網頁翻譯**
 
 一個強大的 Chrome Extension，利用 Ollama 本地 LLM 提供隱私保護的網頁翻譯功能。
@@ -307,8 +312,8 @@ MIT License
 ## 📧 聯絡
 
 有問題或建議？歡迎聯絡：
-- **GitHub**: [browseros-ai/iris-immersive-translate](https://github.com/browseros-ai/iris-immersive-translate)
-- **Email**: 你的 Email
+- **GitHub**: [lmanchu/iris-immersive-translate](https://github.com/lmanchu/iris-immersive-translate)
+- **Issues**: [提交問題](https://github.com/lmanchu/iris-immersive-translate/issues)
 
 ---
 
