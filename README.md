@@ -321,36 +321,11 @@ MIT License
 
 ---
 
-## 🤖 關於 Iris
+## 🤖 Built by Iris
 
-這個 Chrome Extension 是由 **Iris** 開發的 - 一個基於 Claude Code 的 AI 助理系統。
+這個 Chrome Extension 是由 **Iris** 開發的 - 一個基於 Claude Code 的 AI 助理系統（MAGI System 的一部分）。
 
-Iris 是 **MAGI System**（三位一體 AI 協作系統）的核心組件，代號 **Melchior**，負責：
-- 自動化排程管理
-- 重度運算任務
-- PKM 系統維護
-- 軟體開發項目
+**開發時間：** 2025-11-01（約 6 小時從概念到完成）
 
-### 查看 Iris 系統
-
-想了解更多關於 Iris 和 MAGI System 的資訊？
-
-📖 **完整文檔：** [docs/iris-system/](./docs/iris-system/)
-
-包含：
-- **Iris 記憶系統** - Iris 的長期記憶和能力
-- **MAGI System 架構** - 三機協作的完整說明
-- **開發方法論** - Iris 如何從概念到實現
-
----
-
-**🎯 這個專案的開發時程：**
-- **開發時間：** 2025-11-01（約 6 小時）
-- **開發者：** Iris (Melchior) + lmanchu
-- **技術棧：** Chrome Extension + Ollama + BrowserOS
-
-**💡 Iris 的其他專案：**
-- Iris EPUB Reader（EPUB 閱讀器 + TTS）
-- Iris Notifier（macOS 原生通知）
-- Daily Brief Generator（每日簡報自動化）
-- Twitter Auto-Engagement（社交媒體自動化）
+想了解 Iris 系統和開發方法論？查看：
+**[Iris System Repository](https://github.com/lmanchu/iris-system)** 🔗
