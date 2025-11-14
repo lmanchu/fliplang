@@ -35,26 +35,161 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   console.log('[Background] Message received:', request);
 
   if (request.action === 'translate') {
-    // 根據用戶設定選擇翻譯引擎
-    chrome.storage.sync.get({ translationEngine: 'google' }, (settings) => {
-      const translateFn = settings.translationEngine === 'ollama'
-        ? translateWithOllama
-        : translateWithGoogle;
+    // 先檢查使用限制
+    checkUsageLimit()
+      .then(({ allowed, remaining, isPro }) => {
+        if (!allowed && !isPro) {
+          // 超過免費額度
+          sendResponse({
+            success: false,
+            error: 'Daily translation limit reached',
+            limitReached: true,
+            remaining: 0
+          });
+          return;
+        }
 
-      translateFn(request.text, request.targetLang)
-        .then(translation => {
-          sendResponse({ success: true, translation });
-        })
-        .catch(error => {
-          console.error('[Background] Translation error:', error);
-          sendResponse({ success: false, error: error.message });
+        // 根據用戶設定選擇翻譯引擎
+        chrome.storage.sync.get({ translationEngine: 'google' }, (settings) => {
+          const translateFn = settings.translationEngine === 'ollama'
+            ? translateWithOllama
+            : translateWithGoogle;
+
+          translateFn(request.text, request.targetLang)
+            .then(translation => {
+              // 翻譯成功，增加計數
+              incrementUsageCount();
+              sendResponse({
+                success: true,
+                translation,
+                remaining: remaining - 1
+              });
+            })
+            .catch(error => {
+              console.error('[Background] Translation error:', error);
+              sendResponse({ success: false, error: error.message });
+            });
         });
-    });
+      })
+      .catch(error => {
+        console.error('[Background] Usage limit check error:', error);
+        sendResponse({ success: false, error: error.message });
+      });
 
     // 返回 true 表示會異步發送響應
     return true;
   }
+
+  if (request.action === 'getUsageStats') {
+    // 獲取使用統計
+    getUsageStats()
+      .then(stats => {
+        sendResponse({ success: true, stats });
+      })
+      .catch(error => {
+        console.error('[Background] Get usage stats error:', error);
+        sendResponse({ success: false, error: error.message });
+      });
+
+    return true;
+  }
 });
+
+/**
+ * ============================================
+ * Freemium 使用限制管理
+ * ============================================
+ */
+
+const DAILY_FREE_LIMIT = 50; // 免費版每日翻譯上限
+
+/**
+ * 檢查使用限制
+ */
+async function checkUsageLimit() {
+  const today = new Date().toDateString(); // 例如: "Thu Nov 14 2025"
+
+  const data = await chrome.storage.local.get({
+    isPro: false,
+    usageCount: 0,
+    lastResetDate: today
+  });
+
+  // Pro 用戶無限制
+  if (data.isPro) {
+    return { allowed: true, remaining: Infinity, isPro: true };
+  }
+
+  // 檢查是否需要重置計數（新的一天）
+  if (data.lastResetDate !== today) {
+    console.log('[Background] New day detected, resetting usage count');
+    await chrome.storage.local.set({
+      usageCount: 0,
+      lastResetDate: today
+    });
+    return { allowed: true, remaining: DAILY_FREE_LIMIT, isPro: false };
+  }
+
+  // 檢查是否超過限制
+  const remaining = DAILY_FREE_LIMIT - data.usageCount;
+  const allowed = data.usageCount < DAILY_FREE_LIMIT;
+
+  console.log(`[Background] Usage: ${data.usageCount}/${DAILY_FREE_LIMIT}, Remaining: ${remaining}`);
+
+  return { allowed, remaining, isPro: false };
+}
+
+/**
+ * 增加使用計數
+ */
+async function incrementUsageCount() {
+  const today = new Date().toDateString();
+
+  const data = await chrome.storage.local.get({
+    usageCount: 0,
+    lastResetDate: today
+  });
+
+  const newCount = data.usageCount + 1;
+
+  await chrome.storage.local.set({
+    usageCount: newCount,
+    lastResetDate: today
+  });
+
+  console.log(`[Background] Usage count incremented: ${newCount}/${DAILY_FREE_LIMIT}`);
+}
+
+/**
+ * 獲取使用統計
+ */
+async function getUsageStats() {
+  const today = new Date().toDateString();
+
+  const data = await chrome.storage.local.get({
+    isPro: false,
+    usageCount: 0,
+    lastResetDate: today
+  });
+
+  // 如果不是今天的數據，重置為 0
+  const isToday = data.lastResetDate === today;
+  const usageCount = isToday ? data.usageCount : 0;
+
+  return {
+    isPro: data.isPro,
+    usageCount: usageCount,
+    limit: DAILY_FREE_LIMIT,
+    remaining: DAILY_FREE_LIMIT - usageCount,
+    resetDate: today
+  };
+}
+
+/**
+ * ============================================
+ * 翻譯引擎
+ * ============================================
+ */
 
 /**
  * 使用 Google Translate API 進行翻譯（免費）

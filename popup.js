@@ -22,6 +22,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // 根據引擎顯示/隱藏 Ollama 設定
   toggleOllamaSettings(settings.translationEngine);
+
+  // 載入使用統計
+  loadUsageStats();
 });
 
 // 監聽引擎切換
@@ -111,3 +114,64 @@ function showStatus(message, type) {
     }, 3000);
   }
 }
+
+/**
+ * 載入使用統計
+ */
+async function loadUsageStats() {
+  try {
+    // 向 background script 請求使用統計
+    const response = await chrome.runtime.sendMessage({ action: 'getUsageStats' });
+
+    if (response && response.success) {
+      const stats = response.stats;
+      updateUsageDisplay(stats);
+    } else {
+      console.error('Failed to load usage stats:', response?.error);
+    }
+  } catch (error) {
+    console.error('Error loading usage stats:', error);
+  }
+}
+
+/**
+ * 更新使用統計顯示
+ */
+function updateUsageDisplay(stats) {
+  const { isPro, usageCount, limit, remaining } = stats;
+
+  const usageBarFill = document.getElementById('usageBarFill');
+  const usageBarText = document.getElementById('usageBarText');
+  const usageText = document.getElementById('usageText');
+  const proBadge = document.getElementById('proBadge');
+  const upgradeBtn = document.getElementById('upgradeBtn');
+
+  if (isPro) {
+    // Pro 用戶
+    proBadge.style.display = 'inline-block';
+    usageBarFill.style.width = '100%';
+    usageBarText.textContent = '∞ Unlimited';
+    usageText.textContent = 'You have unlimited translations! 🎉';
+    upgradeBtn.style.display = 'none';
+  } else {
+    // 免費用戶
+    proBadge.style.display = 'none';
+    const percentage = (usageCount / limit) * 100;
+    usageBarFill.style.width = `${Math.max(percentage, 10)}%`; // 至少顯示 10% 以顯示文字
+    usageBarText.textContent = `${usageCount}/${limit}`;
+    usageText.textContent = `${remaining} translations remaining today`;
+
+    // 如果用完或接近用完，顯示升級按鈕
+    if (remaining <= 10) {
+      upgradeBtn.style.display = 'block';
+    } else {
+      upgradeBtn.style.display = 'none';
+    }
+  }
+}
+
+// 升級按鈕點擊（預留功能）
+document.getElementById('upgradeBtn').addEventListener('click', () => {
+  // TODO: 未來接入付費系統
+  alert('🚀 Pro version coming soon!\n\nFeatures:\n• Unlimited translations\n• Priority support\n• Advanced AI models\n\nStay tuned!');
+});

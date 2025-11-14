@@ -172,7 +172,16 @@ async function requestTranslation(text, mode = 'reading') {
           if (response && response.success) {
             // 緩存結果（包含模式）
             translationCache.set(cacheKey, response.translation);
+
+            // 顯示剩餘次數（如果不是無限）
+            if (response.remaining !== undefined && response.remaining !== Infinity) {
+              console.log(`[Content] Remaining translations today: ${response.remaining}`);
+            }
+
             resolve(response.translation);
+          } else if (response && response.limitReached) {
+            // 超過每日限制
+            reject(new Error('🚫 Daily limit reached (50/day). Upgrade to Pro for unlimited translations!'));
           } else {
             reject(new Error(response?.error || 'Translation failed'));
           }

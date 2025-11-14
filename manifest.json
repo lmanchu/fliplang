@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Fliplang",
-  "version": "1.1.1",
+  "version": "1.2.0",
   "description": "Privacy-first translation - Powered by Google Translate & Local AI (Ollama)",
   "homepage_url": "https://github.com/lmanchu/fliplang",
   "permissions": [

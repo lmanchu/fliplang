@@ -157,6 +157,76 @@
       font-weight: 600;
       color: #667eea;
     }
+
+    .usage-stats {
+      margin-top: 20px;
+      padding: 16px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      border-radius: 8px;
+      color: white;
+    }
+
+    .usage-stats h3 {
+      font-size: 14px;
+      margin-bottom: 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .usage-stats .pro-badge {
+      background: #ffd700;
+      color: #333;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .usage-bar {
+      background: rgba(255, 255, 255, 0.3);
+      height: 24px;
+      border-radius: 12px;
+      overflow: hidden;
+      position: relative;
+      margin-bottom: 8px;
+    }
+
+    .usage-bar-fill {
+      background: white;
+      height: 100%;
+      transition: width 0.3s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 600;
+      color: #667eea;
+    }
+
+    .usage-text {
+      font-size: 12px;
+      opacity: 0.9;
+      text-align: center;
+    }
+
+    .upgrade-btn {
+      margin-top: 12px;
+      width: 100%;
+      padding: 10px;
+      background: #ffd700;
+      color: #333;
+      border: none;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 0.2s;
+    }
+
+    .upgrade-btn:hover {
+      transform: translateY(-2px);
+    }
   </style>
 </head>
 <body>
@@ -223,6 +293,22 @@
     </div>
 
     <div id="status" class="status"></div>
+
+    <div class="usage-stats" id="usageStats">
+      <h3>
+        <span>📊 Daily Usage</span>
+        <span class="pro-badge" id="proBadge" style="display: none;">PRO</span>
+      </h3>
+      <div class="usage-bar">
+        <div class="usage-bar-fill" id="usageBarFill">
+          <span id="usageBarText">Loading...</span>
+        </div>
+      </div>
+      <div class="usage-text" id="usageText">Loading usage stats...</div>
+      <button class="upgrade-btn" id="upgradeBtn" style="display: none;">
+        ✨ Upgrade to Pro - Unlimited Translations
+      </button>
+    </div>
 
     <div class="shortcuts">
       <h3>⌨️ 快捷鍵</h3>
