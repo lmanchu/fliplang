@@ -132,9 +132,9 @@ async function handlePageTranslation() {
  * @param {string} text - 要翻譯的文字
  * @param {string} mode - 翻譯模式：'reading'（閱讀）或 'writing'（輸入）
  */
-async function requestTranslation(text, mode = 'reading') {
-  // 檢查緩存
-  const cacheKey = `${mode}:${text}`;
+async function requestTranslation(text, mode = 'reading', explicitTargetLang = null) {
+  // 檢查緩存（cache key 包含 target 避免 cross-target 污染）
+  const cacheKey = `${mode}:${explicitTargetLang || ''}:${text}`;
   if (translationCache.has(cacheKey)) {
     console.log('[Content] Cache hit:', text.substring(0, 50));
     return translationCache.get(cacheKey);
@@ -143,13 +143,13 @@ async function requestTranslation(text, mode = 'reading') {
   // 獲取語言設定
   const settings = await chrome.storage.sync.get({
     readingLanguage: '繁體中文',  // 閱讀翻譯
-    writingLanguage: 'English'    // 輸入翻譯
+    writingLanguage: 'English'    // 輸入翻譯（default fallback）
   });
 
-  // 根據模式選擇目標語言
-  const targetLang = mode === 'writing'
+  // 優先用 caller 指定的目標語言（input translate 偵測語言後的決策）
+  const targetLang = explicitTargetLang || (mode === 'writing'
     ? settings.writingLanguage
-    : settings.readingLanguage;
+    : settings.readingLanguage);
 
   console.log(`[Content] Translation mode: ${mode}, target: ${targetLang}`);
 
@@ -587,6 +587,13 @@ document.addEventListener('focusout', (e) => {
 
 // 監聽輸入框中的按鍵
 document.addEventListener('keydown', async (e) => {
+  // ⚠️ IME-safe：中文/日文/韓文 IME composition 中按 space 是「確認候選字」，
+  // 絕不可觸發翻譯，否則會在打字過程中誤觸。
+  // e.isComposing 在 composition 期間為 true；keyCode 229 是 IME 的通用標記。
+  if (e.isComposing || e.keyCode === 229) {
+    return;
+  }
+
   // 只處理空格鍵，且必須在輸入框中
   if (e.key === ' ' && currentInputElement) {
     const now = Date.now();
@@ -622,6 +629,70 @@ document.addEventListener('keydown', async (e) => {
 });
 
 /**
+ * Source language code (ISO 639-1) → 翻譯目標語言（settings 用的選項值）
+ *
+ * 邏輯：使用者「對誰寫」就回對方語言。
+ * - 日文輸入 → 翻成日文（你在跟日本人對話）
+ * - 西文輸入 → 翻成西文
+ * - 中文 / 英文 / 其他偵測不到 → fallback writingLanguage（預設英文）
+ *
+ * 注意：中文 (zh*) 故意不 map — 你寫中文多半是想翻英文發出去，走 fallback。
+ */
+const SOURCE_LANG_TO_TARGET = {
+  'ja': '日本語',
+  'ko': '한국어',
+  'es': 'Español',
+  'fr': 'Français',
+  'de': 'Deutsch',
+};
+
+/**
+ * 用 chrome.i18n.detectLanguage 偵測輸入文字的語言。
+ * Returns: { isReliable, languages: [{language, percentage}] } 或 null
+ */
+async function detectLanguageForInput(text) {
+  if (!chrome.i18n || !chrome.i18n.detectLanguage) return null;
+  return new Promise((resolve) => {
+    try {
+      chrome.i18n.detectLanguage(text, (result) => resolve(result || null));
+    } catch (e) {
+      console.warn('[Content] detectLanguage threw:', e);
+      resolve(null);
+    }
+  });
+}
+
+/**
+ * 根據 detection 結果決定 target 語言。
+ * - isReliable=false 或 top percentage < 60 → 用 fallback
+ * - top language 在 SOURCE_LANG_TO_TARGET 中 → 用 mapped target
+ * - 否則 fallback
+ */
+function pickTargetLanguage(detection, fallback) {
+  if (!detection || !detection.isReliable) return fallback;
+  const top = detection.languages && detection.languages[0];
+  if (!top || top.percentage < 60) return fallback;
+  const baseCode = (top.language || '').split('-')[0]; // zh-TW → zh
+  return SOURCE_LANG_TO_TARGET[baseCode] || fallback;
+}
+
+/**
+ * 把原文寫入 clipboard 當 undo（翻錯時 Cmd+V 還原）。
+ * 必須在 fetch 之前呼叫，user gesture 還沒過期。
+ * Returns: true on success, false on failure
+ */
+async function backupOriginalToClipboard(text) {
+  try {
+    if (!navigator.clipboard || !navigator.clipboard.writeText) return false;
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch (e) {
+    console.warn('[Content] Clipboard backup failed:', e);
+    return false;
+  }
+}
+
+/**
  * 處理輸入框翻譯
  */
 async function handleInputTranslation() {
@@ -648,14 +719,30 @@ async function handleInputTranslation() {
     return;
   }
 
-  console.log('[Content] Translating input:', text.substring(0, 50));
+  // 1. 偵測 source language → 決定 target
+  const settings = await chrome.storage.sync.get({ writingLanguage: 'English' });
+  const detection = await detectLanguageForInput(text);
+  const targetLang = pickTargetLanguage(detection, settings.writingLanguage);
 
-  // 顯示翻譯中狀態
-  showNotification('正在翻譯輸入...', 'info');
+  const detectedLang = detection?.languages?.[0];
+  console.log(
+    '[Content] Input translation:',
+    text.substring(0, 50),
+    '| detected:',
+    detectedLang ? `${detectedLang.language} (${detectedLang.percentage}%)` : 'unknown',
+    '| target:',
+    targetLang
+  );
+
+  // 2. 翻譯前備份原文到 clipboard（user gesture 還在）
+  const backedUp = await backupOriginalToClipboard(text);
+
+  // 3. 顯示翻譯中
+  showNotification(`正在翻譯 → ${targetLang}...`, 'info');
 
   try {
-    // 翻譯文字（使用 'writing' 模式）
-    const translation = await requestTranslation(text, 'writing');
+    // 4. 翻譯（傳入 explicit target — 繞過 settings）
+    const translation = await requestTranslation(text, 'writing', targetLang);
 
     // 替換輸入框內容
     if (isContentEditable) {
@@ -680,7 +767,10 @@ async function handleInputTranslation() {
     currentInputElement.dispatchEvent(new Event('input', { bubbles: true }));
     currentInputElement.dispatchEvent(new Event('change', { bubbles: true }));
 
-    showNotification('✓ 翻譯完成', 'success');
+    showNotification(
+      backedUp ? '✓ 翻譯完成 · 原文已存剪貼簿（Cmd+V 還原）' : '✓ 翻譯完成',
+      'success'
+    );
 
     console.log('[Content] Input translation successful');
   } catch (error) {
