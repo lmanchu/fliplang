@@ -4,10 +4,24 @@
  * 雙語對照樣式
  */
 
-/* 翻譯容器 - 雙語對照 */
+/* 翻譯容器 - 雙語對照
+ * 虛線框讓使用者一眼分辨「這段是被翻譯過的」
+ * 用 :where() 降低 specificity，避免 host 站台 layout 被破壞
+ */
 .iris-translation-container {
   display: inline-block;
   position: relative;
+  border: 1px dashed rgba(102, 126, 234, 0.45);
+  border-radius: 6px;
+  padding: 4px 8px;
+  margin: 2px 0;
+  background: rgba(102, 126, 234, 0.03);
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.iris-translation-container:hover {
+  border-color: rgba(102, 126, 234, 0.75);
+  background: rgba(102, 126, 234, 0.06);
 }
 
 .iris-original {
@@ -26,6 +40,20 @@
   padding-left: 8px;
   border-left: 3px solid #667eea;
   line-height: 1.5;
+}
+
+/* Dark mode — 虛線框在深色站台不刺眼 */
+@media (prefers-color-scheme: dark) {
+  .iris-translation-container {
+    border-color: rgba(168, 184, 255, 0.4);
+    background: rgba(168, 184, 255, 0.05);
+  }
+  .iris-translation-container:hover {
+    border-color: rgba(168, 184, 255, 0.7);
+    background: rgba(168, 184, 255, 0.09);
+  }
+  .iris-original { color: #e5e7eb; }
+  .iris-translated { color: #9ca3af; border-left-color: #a8b8ff; }
 }
 
 /* 翻譯提示框（選取翻譯用） */
@@ -234,9 +262,30 @@
   opacity: 0.95;
 }
 
-/* 已翻譯元素的標記（可選） */
+/* Hover 翻譯段落 — 整段虛線框讓使用者知道「這段被翻譯過」 */
 .iris-hover-translated {
-  /* 可以添加視覺提示，例如淡淡的背景色 */
+  border: 1px dashed rgba(102, 126, 234, 0.45);
+  border-radius: 6px;
+  padding: 6px 10px;
+  margin: 4px 0;
+  background: rgba(102, 126, 234, 0.03);
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.iris-hover-translated:hover {
+  border-color: rgba(102, 126, 234, 0.75);
+  background: rgba(102, 126, 234, 0.06);
+}
+
+@media (prefers-color-scheme: dark) {
+  .iris-hover-translated {
+    border-color: rgba(168, 184, 255, 0.4);
+    background: rgba(168, 184, 255, 0.05);
+  }
+  .iris-hover-translated:hover {
+    border-color: rgba(168, 184, 255, 0.7);
+    background: rgba(168, 184, 255, 0.09);
+  }
 }
 
 /* 響應式設計 */
@@ -254,4 +303,92 @@
   .iris-sentence-translated {
     font-size: 0.85em;
   }
+}
+
+/* ============================================
+ * Floating Ball — 主要翻譯入口
+ * ============================================ */
+
+.iris-floating-ball {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  box-shadow: 0 3px 12px rgba(102, 126, 234, 0.3), 0 1px 3px rgba(0, 0, 0, 0.08);
+  cursor: grab;
+  z-index: 2147483647; /* max z-index — 蓋過所有 site UI */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  transition: box-shadow 0.15s ease, opacity 0.2s ease;
+  user-select: none;
+  opacity: 0.75;
+  touch-action: none; /* 讓 pointer events 完整接管 — 不被 scroll 搶 */
+}
+
+.iris-floating-ball.iris-floating-ball-dragging {
+  cursor: grabbing;
+  opacity: 1;
+  transition: none; /* 拖曳時關 transition 避免延遲 */
+}
+
+.iris-floating-ball:hover {
+  box-shadow: 0 4px 18px rgba(102, 126, 234, 0.45), 0 2px 6px rgba(0, 0, 0, 0.1);
+  opacity: 1;
+}
+
+.iris-floating-ball-icon {
+  pointer-events: none;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.15));
+}
+
+/* 右下角狀態點 — auto-translate indicator */
+.iris-floating-ball-dot {
+  position: absolute;
+  bottom: 0px;
+  right: 0px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.4);
+  border: 1.5px solid white;
+  cursor: pointer;
+  transition: background 0.2s ease, transform 0.15s ease;
+}
+
+.iris-floating-ball-dot:hover {
+  transform: scale(1.2);
+}
+
+/* Auto-translate ON 狀態 — 點變綠 + ball 加亮環 */
+.iris-floating-ball.iris-floating-ball-auto-on .iris-floating-ball-dot {
+  background: #4ade80; /* green */
+  box-shadow: 0 0 8px rgba(74, 222, 128, 0.6);
+}
+
+.iris-floating-ball.iris-floating-ball-auto-on {
+  box-shadow: 0 4px 16px rgba(102, 126, 234, 0.35),
+              0 2px 4px rgba(0, 0, 0, 0.1),
+              0 0 0 2px rgba(74, 222, 128, 0.4);
+}
+
+/* Click pulse 動畫 */
+@keyframes iris-ball-pulse {
+  0% { transform: scale(0.96); }
+  50% { transform: scale(1.12); }
+  100% { transform: scale(1); }
+}
+
+.iris-floating-ball-pulse {
+  animation: iris-ball-pulse 0.4s ease-out;
+}
+
+/* 全螢幕模式自動隱藏 */
+:fullscreen .iris-floating-ball,
+:-webkit-full-screen .iris-floating-ball {
+  display: none;
 }

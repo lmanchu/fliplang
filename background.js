@@ -102,12 +102,18 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
  */
 
 const DAILY_FREE_LIMIT = 50; // 免費版每日翻譯上限
+const DOGFOOD_MODE = true;   // dogfood: 跳過 quota，自用無限制
 
 /**
  * 檢查使用限制
  */
 async function checkUsageLimit() {
   const today = new Date().toDateString(); // 例如: "Thu Nov 14 2025"
+
+  // Dogfood: 自用版本不卡 quota
+  if (DOGFOOD_MODE) {
+    return { allowed: true, remaining: DAILY_FREE_LIMIT, isPro: true };
+  }
 
   const data = await chrome.storage.local.get({
     isPro: false,

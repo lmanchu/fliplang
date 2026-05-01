@@ -688,3 +688,177 @@ async function handleInputTranslation() {
     showNotification('翻譯失敗: ' + error.message, 'error');
   }
 }
+
+/**
+ * ============================================
+ * Floating Ball — 主要入口（取代 hotkey）
+ * ============================================
+ *
+ * - Click ball: toggle 整頁翻譯
+ * - Click 右下小點: toggle 本網站「自動翻譯」
+ * - Page load: 若 domain in auto-list → 自動翻譯
+ */
+
+const AUTO_TRANSLATE_KEY = 'autoTranslateDomains'; // chrome.storage.local: { [domain]: true }
+const BALL_POSITION_KEY = 'floatingBallPosition';  // chrome.storage.local: { x: 0..1, y: 0..1 } 視窗比例
+
+function getDomainKey() {
+  // 用 hostname 作 key（同 site 跨頁面共用設定）
+  return location.hostname || 'unknown';
+}
+
+async function isAutoTranslateEnabled(domain) {
+  const data = await chrome.storage.local.get({ [AUTO_TRANSLATE_KEY]: {} });
+  return !!data[AUTO_TRANSLATE_KEY][domain];
+}
+
+async function setAutoTranslateEnabled(domain, enabled) {
+  const data = await chrome.storage.local.get({ [AUTO_TRANSLATE_KEY]: {} });
+  const map = data[AUTO_TRANSLATE_KEY] || {};
+  if (enabled) {
+    map[domain] = true;
+  } else {
+    delete map[domain];
+  }
+  await chrome.storage.local.set({ [AUTO_TRANSLATE_KEY]: map });
+}
+
+async function getSavedBallPosition() {
+  const data = await chrome.storage.local.get({ [BALL_POSITION_KEY]: null });
+  return data[BALL_POSITION_KEY]; // null = 用預設 bottom-right
+}
+
+async function saveBallPosition(xRatio, yRatio) {
+  await chrome.storage.local.set({ [BALL_POSITION_KEY]: { x: xRatio, y: yRatio } });
+}
+
+function injectFloatingBall() {
+  // 避免重複注入（SPA 重新 mount 時）
+  if (document.getElementById('iris-floating-ball')) return;
+
+  const ball = document.createElement('div');
+  ball.id = 'iris-floating-ball';
+  ball.className = 'iris-floating-ball';
+  ball.title = 'Fliplang: 拖曳移動 / 點擊翻譯整頁 / 點右下角小點切換本站自動翻譯';
+
+  // 主 icon
+  const icon = document.createElement('span');
+  icon.className = 'iris-floating-ball-icon';
+  icon.textContent = '🌐';
+  ball.appendChild(icon);
+
+  // 自動翻譯狀態指示點（右下角）
+  const dot = document.createElement('span');
+  dot.className = 'iris-floating-ball-dot';
+  dot.title = '點此切換：本網站自動翻譯';
+  ball.appendChild(dot);
+
+  // ============ Drag + Click 處理 ============
+  // mousedown/move/up 區分：移動 < 5px 視為 click，否則 drag 並儲存位置
+  const BALL_SIZE = 36;
+  const DRAG_THRESHOLD = 5;
+  let dragState = null;
+
+  ball.addEventListener('mousedown', (e) => {
+    if (e.target === dot) return; // dot 自己處理 click
+    if (e.button !== 0) return;    // 只處理左鍵
+    const rect = ball.getBoundingClientRect();
+    dragState = {
+      startX: e.clientX,
+      startY: e.clientY,
+      ballX: rect.left,
+      ballY: rect.top,
+      moved: false
+    };
+    ball.classList.add('iris-floating-ball-dragging');
+    e.preventDefault();
+  });
+
+  document.addEventListener('mousemove', (e) => {
+    if (!dragState) return;
+    const dx = e.clientX - dragState.startX;
+    const dy = e.clientY - dragState.startY;
+    if (!dragState.moved && (Math.abs(dx) > DRAG_THRESHOLD || Math.abs(dy) > DRAG_THRESHOLD)) {
+      dragState.moved = true;
+    }
+    if (dragState.moved) {
+      let newX = dragState.ballX + dx;
+      let newY = dragState.ballY + dy;
+      newX = Math.max(4, Math.min(window.innerWidth - BALL_SIZE - 4, newX));
+      newY = Math.max(4, Math.min(window.innerHeight - BALL_SIZE - 4, newY));
+      ball.style.left = newX + 'px';
+      ball.style.top = newY + 'px';
+      ball.style.right = 'auto';
+      ball.style.bottom = 'auto';
+    }
+  });
+
+  document.addEventListener('mouseup', async (e) => {
+    if (!dragState) return;
+    ball.classList.remove('iris-floating-ball-dragging');
+    const wasDrag = dragState.moved;
+    dragState = null;
+
+    if (!wasDrag) {
+      // Click → 觸發整頁翻譯
+      handlePageTranslation();
+      ball.classList.add('iris-floating-ball-pulse');
+      setTimeout(() => ball.classList.remove('iris-floating-ball-pulse'), 400);
+    } else {
+      // Drag end → 儲存位置（用 viewport 比例，視窗 resize 後仍合理）
+      const rect = ball.getBoundingClientRect();
+      await saveBallPosition(rect.left / window.innerWidth, rect.top / window.innerHeight);
+    }
+  });
+
+  // Click dot → toggle auto-translate for this domain
+  dot.addEventListener('click', async (e) => {
+    e.stopPropagation();
+    const domain = getDomainKey();
+    const current = await isAutoTranslateEnabled(domain);
+    const next = !current;
+    await setAutoTranslateEnabled(domain, next);
+    ball.classList.toggle('iris-floating-ball-auto-on', next);
+    showNotification(
+      next
+        ? `✓ ${domain} 已加入自動翻譯`
+        : `✗ ${domain} 已取消自動翻譯`,
+      next ? 'success' : 'info'
+    );
+  });
+
+  document.body.appendChild(ball);
+
+  // 套用儲存的位置
+  getSavedBallPosition().then(pos => {
+    if (pos && typeof pos.x === 'number' && typeof pos.y === 'number') {
+      const x = Math.max(4, Math.min(window.innerWidth - BALL_SIZE - 4, pos.x * window.innerWidth));
+      const y = Math.max(4, Math.min(window.innerHeight - BALL_SIZE - 4, pos.y * window.innerHeight));
+      ball.style.left = x + 'px';
+      ball.style.top = y + 'px';
+      ball.style.right = 'auto';
+      ball.style.bottom = 'auto';
+    }
+  });
+
+  // 初始 auto-translate 狀態
+  isAutoTranslateEnabled(getDomainKey()).then(enabled => {
+    ball.classList.toggle('iris-floating-ball-auto-on', enabled);
+    if (enabled) {
+      console.log('[Fliplang] Auto-translate enabled for', getDomainKey());
+      setTimeout(() => {
+        if (!isTranslating) handlePageTranslation();
+      }, 800);
+    }
+  });
+}
+
+// document_end 之後等 body 存在再 inject
+function tryInjectBall() {
+  if (document.body) {
+    injectFloatingBall();
+  } else {
+    document.addEventListener('DOMContentLoaded', injectFloatingBall, { once: true });
+  }
+}
+tryInjectBall();
