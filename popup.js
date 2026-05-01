@@ -136,42 +136,27 @@ async function loadUsageStats() {
 
 /**
  * 更新使用統計顯示
+ *
+ * Dogfood 階段：所有用戶都顯示無限翻譯，badge = DOGFOOD（不是 PRO，避免商業誤解）。
+ * upgrade 按鈕永久隱藏，由 Ko-fi 打賞取代。
  */
 function updateUsageDisplay(stats) {
-  const { isPro, usageCount, limit, remaining } = stats;
-
   const usageBarFill = document.getElementById('usageBarFill');
   const usageBarText = document.getElementById('usageBarText');
   const usageText = document.getElementById('usageText');
   const proBadge = document.getElementById('proBadge');
   const upgradeBtn = document.getElementById('upgradeBtn');
 
-  if (isPro) {
-    // Pro 用戶
-    proBadge.style.display = 'inline-block';
-    usageBarFill.style.width = '100%';
-    usageBarText.textContent = '∞ Unlimited';
-    usageText.textContent = 'You have unlimited translations! 🎉';
-    upgradeBtn.style.display = 'none';
-  } else {
-    // 免費用戶
-    proBadge.style.display = 'none';
-    const percentage = (usageCount / limit) * 100;
-    usageBarFill.style.width = `${Math.max(percentage, 10)}%`; // 至少顯示 10% 以顯示文字
-    usageBarText.textContent = `${usageCount}/${limit}`;
-    usageText.textContent = `${remaining} translations remaining today`;
+  // Dogfood mode: 統一顯示 unlimited，不分 free/pro
+  proBadge.textContent = 'DOGFOOD';
+  proBadge.style.display = 'inline-block';
+  proBadge.style.background = '#a8b8ff';
+  proBadge.style.color = '#333';
 
-    // 如果用完或接近用完，顯示升級按鈕
-    if (remaining <= 10) {
-      upgradeBtn.style.display = 'block';
-    } else {
-      upgradeBtn.style.display = 'none';
-    }
-  }
+  usageBarFill.style.width = '100%';
+  usageBarText.textContent = '∞';
+  usageText.textContent = '無限翻譯 · 個人 dogfood 版本';
+
+  // 永久隱藏 upgrade（已被 Ko-fi 取代）
+  upgradeBtn.style.display = 'none';
 }
-
-// 升級按鈕點擊（預留功能）
-document.getElementById('upgradeBtn').addEventListener('click', () => {
-  // TODO: 未來接入付費系統
-  alert('🚀 Pro version coming soon!\n\nFeatures:\n• Unlimited translations\n• Priority support\n• Advanced AI models\n\nStay tuned!');
-});
