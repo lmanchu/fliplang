@@ -4,99 +4,121 @@
  * Settings interface logic
  */
 
-// 載入已保存的設定
+// Sync settings (engine, model, URL, language) - 跨設備
+const SYNC_DEFAULTS = {
+  translationEngine: 'google',
+  ollamaUrl: 'http://localhost:11434',
+  model: 'gpt-oss:20b',                      // Ollama model
+  openaiModel: 'gpt-4o-mini',
+  anthropicModel: 'claude-haiku-4-5',
+  geminiModel: 'gemini-2.5-flash',
+  cliproxyUrl: 'http://127.0.0.1:8317',
+  cliproxyModel: 'claude-sonnet-4-6',
+  readingLanguage: '繁體中文',
+  writingLanguage: 'English',
+};
+
+// Local-only secrets (API keys) - 不跨設備同步
+const LOCAL_KEY_FIELDS = ['openaiApiKey', 'anthropicApiKey', 'geminiApiKey', 'cliproxyApiKey'];
+
 document.addEventListener('DOMContentLoaded', async () => {
-  const settings = await chrome.storage.sync.get({
-    translationEngine: 'google',
-    ollamaUrl: 'http://localhost:11434',
-    model: 'gpt-oss:20b',
-    readingLanguage: '繁體中文',  // 閱讀翻譯：網頁→中文
-    writingLanguage: 'English'    // 輸入翻譯：中文→英文
-  });
+  const sync = await chrome.storage.sync.get(SYNC_DEFAULTS);
+  const local = await chrome.storage.local.get(LOCAL_KEY_FIELDS);
 
-  document.getElementById('translationEngine').value = settings.translationEngine;
-  document.getElementById('ollamaUrl').value = settings.ollamaUrl;
-  document.getElementById('model').value = settings.model;
-  document.getElementById('readingLanguage').value = settings.readingLanguage;
-  document.getElementById('writingLanguage').value = settings.writingLanguage;
+  // 套用 sync 欄位
+  for (const [key, val] of Object.entries(sync)) {
+    const el = document.getElementById(key);
+    if (el) el.value = val;
+  }
+  // 套用 local key 欄位
+  for (const key of LOCAL_KEY_FIELDS) {
+    const el = document.getElementById(key);
+    if (el && local[key]) el.value = local[key];
+  }
 
-  // 根據引擎顯示/隱藏 Ollama 設定
-  toggleOllamaSettings(settings.translationEngine);
-
-  // 載入使用統計
+  toggleProviderSettings(sync.translationEngine);
   loadUsageStats();
 });
 
-// 監聽引擎切換
+// 監聽引擎切換 → show/hide 對應 provider settings
 document.getElementById('translationEngine').addEventListener('change', (e) => {
-  toggleOllamaSettings(e.target.value);
+  toggleProviderSettings(e.target.value);
 });
 
 /**
- * 根據選擇的引擎顯示/隱藏 Ollama 設定
+ * 顯示選中 provider 的設定區塊，隱藏其他
  */
-function toggleOllamaSettings(engine) {
-  const ollamaSettings = document.getElementById('ollamaSettings');
+function toggleProviderSettings(engine) {
+  const blocks = document.querySelectorAll('.provider-settings');
+  blocks.forEach(b => {
+    b.style.display = b.dataset.provider === engine ? 'block' : 'none';
+  });
+  // testBtn 在所有 LLM provider 都顯示（google 不需要測）
   const testBtn = document.getElementById('testBtn');
-
-  if (engine === 'ollama') {
-    ollamaSettings.style.display = 'block';
-    testBtn.style.display = 'block';
-  } else {
-    ollamaSettings.style.display = 'none';
-    testBtn.style.display = 'none';
-  }
+  if (testBtn) testBtn.style.display = engine === 'google' ? 'none' : 'block';
 }
 
 // 儲存設定
 document.getElementById('saveBtn').addEventListener('click', async () => {
-  const settings = {
-    translationEngine: document.getElementById('translationEngine').value,
-    ollamaUrl: document.getElementById('ollamaUrl').value,
-    model: document.getElementById('model').value,
-    readingLanguage: document.getElementById('readingLanguage').value,
-    writingLanguage: document.getElementById('writingLanguage').value
-  };
+  // sync 欄位
+  const syncSettings = {};
+  for (const key of Object.keys(SYNC_DEFAULTS)) {
+    const el = document.getElementById(key);
+    if (el) syncSettings[key] = el.value;
+  }
+
+  // local key 欄位（只儲存非空，避免覆寫已存的 key）
+  const localSettings = {};
+  for (const key of LOCAL_KEY_FIELDS) {
+    const el = document.getElementById(key);
+    if (el && el.value) localSettings[key] = el.value;
+  }
 
   try {
-    await chrome.storage.sync.set(settings);
-    const engine = settings.translationEngine === 'google' ? 'Google Translate' : 'Ollama';
-    showStatus(`設定已儲存！
-閱讀→${settings.readingLanguage}
-輸入→${settings.writingLanguage}`, 'success');
+    await chrome.storage.sync.set(syncSettings);
+    if (Object.keys(localSettings).length > 0) {
+      await chrome.storage.local.set(localSettings);
+    }
+    showStatus(`✓ 設定已儲存\n引擎：${syncSettings.translationEngine}\n閱讀→${syncSettings.readingLanguage}\n輸入→${syncSettings.writingLanguage}`, 'success');
   } catch (error) {
     showStatus('儲存失敗: ' + error.message, 'error');
   }
 });
 
-// 測試連線
+// 測試連線（用當前選中的 provider）
 document.getElementById('testBtn').addEventListener('click', async () => {
-  const ollamaUrl = document.getElementById('ollamaUrl').value;
-  const model = document.getElementById('model').value;
+  const engine = document.getElementById('translationEngine').value;
 
-  showStatus('正在測試連線...', 'info');
+  // 先把當前 popup 的設定存起來，再測試（test 會用 storage 讀取 key/url）
+  const syncSettings = {};
+  for (const key of Object.keys(SYNC_DEFAULTS)) {
+    const el = document.getElementById(key);
+    if (el) syncSettings[key] = el.value;
+  }
+  const localSettings = {};
+  for (const key of LOCAL_KEY_FIELDS) {
+    const el = document.getElementById(key);
+    if (el && el.value) localSettings[key] = el.value;
+  }
+  await chrome.storage.sync.set(syncSettings);
+  if (Object.keys(localSettings).length > 0) {
+    await chrome.storage.local.set(localSettings);
+  }
+
+  showStatus(`正在測試 ${engine}...`, 'info');
 
   try {
-    const response = await fetch(`${ollamaUrl}/api/generate`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: model,
-        prompt: 'Hello',
-        stream: false
-      })
+    const response = await chrome.runtime.sendMessage({
+      action: 'testProvider',
+      provider: engine,
     });
-
-    if (response.ok) {
-      const data = await response.json();
-      showStatus(`✓ 連線成功！模型 ${model} 正常運作`, 'success');
+    if (response && response.success) {
+      showStatus(`✓ ${engine} 連線成功\n回傳：${response.translation.substring(0, 80)}`, 'success');
     } else {
-      showStatus(`✗ 連線失敗: HTTP ${response.status}`, 'error');
+      showStatus(`✗ ${engine} 失敗：${response?.error || 'unknown error'}`, 'error');
     }
   } catch (error) {
-    showStatus(`✗ 連線失敗: ${error.message}`, 'error');
+    showStatus(`✗ 測試失敗：${error.message}`, 'error');
   }
 });
 

@@ -275,23 +275,85 @@
     <div class="form-group">
       <label for="translationEngine">翻譯引擎</label>
       <select id="translationEngine">
-        <option value="google">Google Translate（快速，推薦）</option>
-        <option value="ollama">Ollama 本地模型（隱私，慢）</option>
+        <option value="google">Google Translate（免費 / 快）</option>
+        <option value="ollama">Ollama 本地（隱私 / 慢）</option>
+        <option value="openai">OpenAI（BYOK · gpt-4o-mini 預設）</option>
+        <option value="anthropic">Anthropic（BYOK · Claude Haiku 預設）</option>
+        <option value="gemini">Google Gemini（BYOK · 2.5 Flash 預設）</option>
+        <option value="cliproxy">CLIProxy（本機 OAuth · 零邊際成本）</option>
       </select>
-      <div class="hint">預設使用 Google Translate，速度快且免費</div>
+      <div class="hint">BYOK = Bring Your Own Key · 用你自己的 API key</div>
     </div>
 
-    <div id="ollamaSettings" style="display: none;">
+    <!-- Ollama -->
+    <div class="provider-settings" data-provider="ollama" style="display: none;">
       <div class="form-group">
         <label for="ollamaUrl">Ollama API 端點</label>
         <input type="text" id="ollamaUrl" placeholder="http://localhost:11434">
-        <div class="hint">通常是 http://localhost:11434</div>
       </div>
-
       <div class="form-group">
         <label for="model">Ollama 模型</label>
         <input type="text" id="model" placeholder="gpt-oss:20b">
-        <div class="hint">例如: gpt-oss:20b, qwen2.5vl:3b, llama3.3</div>
+        <div class="hint">例如: gpt-oss:20b, qwen2.5, llama3.3</div>
+      </div>
+    </div>
+
+    <!-- OpenAI -->
+    <div class="provider-settings" data-provider="openai" style="display: none;">
+      <div class="form-group">
+        <label for="openaiApiKey">OpenAI API Key</label>
+        <input type="password" id="openaiApiKey" placeholder="sk-...">
+        <div class="hint">key 存本機（chrome.storage.local），不跨設備同步</div>
+      </div>
+      <div class="form-group">
+        <label for="openaiModel">Model</label>
+        <input type="text" id="openaiModel" placeholder="gpt-4o-mini">
+        <div class="hint">建議 gpt-4o-mini（便宜快），或 gpt-4o（品質高）</div>
+      </div>
+    </div>
+
+    <!-- Anthropic -->
+    <div class="provider-settings" data-provider="anthropic" style="display: none;">
+      <div class="form-group">
+        <label for="anthropicApiKey">Anthropic API Key</label>
+        <input type="password" id="anthropicApiKey" placeholder="sk-ant-...">
+        <div class="hint">⚠️ 瀏覽器直連 Anthropic，key 從本機送出。dogfood 自用 OK，正式上線前審視</div>
+      </div>
+      <div class="form-group">
+        <label for="anthropicModel">Model</label>
+        <input type="text" id="anthropicModel" placeholder="claude-haiku-4-5">
+        <div class="hint">建議 claude-haiku-4-5（便宜快）或 claude-sonnet-4-6</div>
+      </div>
+    </div>
+
+    <!-- Gemini -->
+    <div class="provider-settings" data-provider="gemini" style="display: none;">
+      <div class="form-group">
+        <label for="geminiApiKey">Gemini API Key</label>
+        <input type="password" id="geminiApiKey" placeholder="AIza...">
+        <div class="hint">從 ai.google.dev 取得 API key（free tier 慷慨）</div>
+      </div>
+      <div class="form-group">
+        <label for="geminiModel">Model</label>
+        <input type="text" id="geminiModel" placeholder="gemini-2.5-flash">
+        <div class="hint">建議 gemini-2.5-flash（速度快）或 gemini-2.5-pro</div>
+      </div>
+    </div>
+
+    <!-- CLIProxy -->
+    <div class="provider-settings" data-provider="cliproxy" style="display: none;">
+      <div class="form-group">
+        <label for="cliproxyUrl">CLIProxy URL</label>
+        <input type="text" id="cliproxyUrl" placeholder="http://127.0.0.1:8317">
+      </div>
+      <div class="form-group">
+        <label for="cliproxyApiKey">CLIProxy API Key</label>
+        <input type="password" id="cliproxyApiKey" placeholder="magi-proxy-key-2026">
+      </div>
+      <div class="form-group">
+        <label for="cliproxyModel">Model</label>
+        <input type="text" id="cliproxyModel" placeholder="claude-sonnet-4-6">
+        <div class="hint">透過 OAuth 訂閱配額，零邊際成本（claude-sonnet-4-6 / gemini-2.5-flash / glm-4.7）</div>
       </div>
     </div>
 

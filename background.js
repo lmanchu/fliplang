@@ -49,11 +49,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           return;
         }
 
-        // 根據用戶設定選擇翻譯引擎
+        // 根據用戶設定選擇翻譯引擎（dispatch table 取代寫死的 if/else）
         chrome.storage.sync.get({ translationEngine: 'google' }, (settings) => {
-          const translateFn = settings.translationEngine === 'ollama'
-            ? translateWithOllama
-            : translateWithGoogle;
+          const translateFn = PROVIDERS[settings.translationEngine] || translateWithGoogle;
 
           translateFn(request.text, request.targetLang)
             .then(translation => {
@@ -91,6 +89,21 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         sendResponse({ success: false, error: error.message });
       });
 
+    return true;
+  }
+
+  // 測試指定 provider — popup 的「測試連線」按鈕用
+  // 跳過 quota check，直接呼叫指定 provider 翻譯一句短文
+  if (request.action === 'testProvider') {
+    const provider = request.provider;
+    const fn = PROVIDERS[provider];
+    if (!fn) {
+      sendResponse({ success: false, error: `Unknown provider: ${provider}` });
+      return true;
+    }
+    fn('Hello, this is a connection test.', '繁體中文')
+      .then(translation => sendResponse({ success: true, translation }))
+      .catch(error => sendResponse({ success: false, error: error.message }));
     return true;
   }
 });
@@ -346,17 +359,201 @@ ${text}`;
   }
 }
 
+/**
+ * ============================================
+ * BYOK Providers — OpenAI / Anthropic / Gemini / CLIProxy
+ * ============================================
+ *
+ * Storage convention:
+ *   chrome.storage.local : API keys（不跨設備同步，避免上 Google sync server）
+ *   chrome.storage.sync  : engine 選擇 / model / URL（可跨設備）
+ *
+ * 所有 LLM provider 共用相同 prompt 結構：system 指令 + user 內容。
+ * 翻譯結果結尾呼叫 applyGlossary() 統一過 post-fix。
+ */
+
+const LLM_TRANSLATE_SYSTEM_PROMPT = (targetLang) =>
+  `You are a precise translator. Translate the user's text into ${targetLang}. ` +
+  `Output ONLY the translation — no commentary, no explanations, no quotes, no thinking process. ` +
+  `Preserve technical terms (e.g. LLM, API, GPU, JSON, YAML) and proper nouns in their original form.`;
+
+/**
+ * OpenAI Chat Completions
+ */
+async function translateWithOpenAI(text, targetLang = '繁體中文') {
+  const localData = await chrome.storage.local.get('openaiApiKey');
+  const syncData = await chrome.storage.sync.get({ openaiModel: 'gpt-4o-mini' });
+  if (!localData.openaiApiKey) throw new Error('OpenAI API key not set. Set it in popup settings.');
+
+  console.log('[Background] OpenAI translate:', text.substring(0, 50), '→', targetLang, '(', syncData.openaiModel, ')');
+
+  const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${localData.openaiApiKey}`,
+    },
+    body: JSON.stringify({
+      model: syncData.openaiModel,
+      messages: [
+        { role: 'system', content: LLM_TRANSLATE_SYSTEM_PROMPT(targetLang) },
+        { role: 'user', content: text },
+      ],
+      temperature: 0.3,
+    }),
+  });
+
+  if (!response.ok) {
+    const errText = await response.text();
+    throw new Error(`OpenAI API ${response.status}: ${errText.substring(0, 200)}`);
+  }
+
+  const data = await response.json();
+  const content = data.choices?.[0]?.message?.content?.trim();
+  if (!content) throw new Error('OpenAI returned empty content');
+  return await applyGlossary(content);
+}
+
+/**
+ * Anthropic Messages API
+ * 註：browser 直連 Anthropic 需要 anthropic-dangerous-direct-browser-access header
+ */
+async function translateWithAnthropic(text, targetLang = '繁體中文') {
+  const localData = await chrome.storage.local.get('anthropicApiKey');
+  const syncData = await chrome.storage.sync.get({ anthropicModel: 'claude-haiku-4-5' });
+  if (!localData.anthropicApiKey) throw new Error('Anthropic API key not set. Set it in popup settings.');
+
+  console.log('[Background] Anthropic translate:', text.substring(0, 50), '→', targetLang, '(', syncData.anthropicModel, ')');
+
+  const response = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': localData.anthropicApiKey,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true',
+    },
+    body: JSON.stringify({
+      model: syncData.anthropicModel,
+      max_tokens: 4096,
+      system: LLM_TRANSLATE_SYSTEM_PROMPT(targetLang),
+      messages: [{ role: 'user', content: text }],
+    }),
+  });
+
+  if (!response.ok) {
+    const errText = await response.text();
+    throw new Error(`Anthropic API ${response.status}: ${errText.substring(0, 200)}`);
+  }
+
+  const data = await response.json();
+  const content = data.content?.[0]?.text?.trim();
+  if (!content) throw new Error('Anthropic returned empty content');
+  return await applyGlossary(content);
+}
+
+/**
+ * Google Gemini generateContent
+ */
+async function translateWithGemini(text, targetLang = '繁體中文') {
+  const localData = await chrome.storage.local.get('geminiApiKey');
+  const syncData = await chrome.storage.sync.get({ geminiModel: 'gemini-2.5-flash' });
+  if (!localData.geminiApiKey) throw new Error('Gemini API key not set. Set it in popup settings.');
+
+  console.log('[Background] Gemini translate:', text.substring(0, 50), '→', targetLang, '(', syncData.geminiModel, ')');
+
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${syncData.geminiModel}:generateContent?key=${localData.geminiApiKey}`;
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      systemInstruction: { parts: [{ text: LLM_TRANSLATE_SYSTEM_PROMPT(targetLang) }] },
+      contents: [{ role: 'user', parts: [{ text }] }],
+      generationConfig: { temperature: 0.3 },
+    }),
+  });
+
+  if (!response.ok) {
+    const errText = await response.text();
+    throw new Error(`Gemini API ${response.status}: ${errText.substring(0, 200)}`);
+  }
+
+  const data = await response.json();
+  const content = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+  if (!content) throw new Error('Gemini returned empty content');
+  return await applyGlossary(content);
+}
+
+/**
+ * CLIProxy (OpenAI-compatible) — 本機 OAuth 零邊際成本
+ * https://github.com/router-for-me/CLIProxyAPI
+ */
+async function translateWithCLIProxy(text, targetLang = '繁體中文') {
+  const localData = await chrome.storage.local.get('cliproxyApiKey');
+  const syncData = await chrome.storage.sync.get({
+    cliproxyUrl: 'http://127.0.0.1:8317',
+    cliproxyModel: 'claude-sonnet-4-6',
+  });
+  if (!localData.cliproxyApiKey) throw new Error('CLIProxy API key not set. Default key is magi-proxy-key-2026.');
+
+  console.log('[Background] CLIProxy translate:', text.substring(0, 50), '→', targetLang, '(', syncData.cliproxyModel, ')');
+
+  const response = await fetch(`${syncData.cliproxyUrl}/v1/chat/completions`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${localData.cliproxyApiKey}`,
+    },
+    body: JSON.stringify({
+      model: syncData.cliproxyModel,
+      messages: [
+        { role: 'system', content: LLM_TRANSLATE_SYSTEM_PROMPT(targetLang) },
+        { role: 'user', content: text },
+      ],
+      temperature: 0.3,
+    }),
+  });
+
+  if (!response.ok) {
+    const errText = await response.text();
+    throw new Error(`CLIProxy ${response.status}: ${errText.substring(0, 200)}`);
+  }
+
+  const data = await response.json();
+  const content = data.choices?.[0]?.message?.content?.trim();
+  if (!content) throw new Error('CLIProxy returned empty content');
+  return await applyGlossary(content);
+}
+
+/**
+ * Provider dispatch table — message handler 用 settings.translationEngine 查表
+ * 新增 provider 只在這裡加一行。
+ */
+const PROVIDERS = {
+  google:    translateWithGoogle,
+  ollama:    translateWithOllama,
+  openai:    translateWithOpenAI,
+  anthropic: translateWithAnthropic,
+  gemini:    translateWithGemini,
+  cliproxy:  translateWithCLIProxy,
+};
+
 // Extension 安裝時的初始化
 chrome.runtime.onInstalled.addListener(() => {
   console.log('[Background] Fliplang installed');
 
-  // 設置默認配置
+  // 設置默認配置（不覆寫已有 key）
   chrome.storage.sync.set({
-    translationEngine: 'google',  // 預設使用 Google Translate（快速）
+    translationEngine: 'google',
     ollamaUrl: 'http://localhost:11434',
     model: 'gpt-oss:20b',
-    readingLanguage: '繁體中文',  // 閱讀翻譯：網頁→中文
-    writingLanguage: 'English',   // 輸入翻譯：中文→英文
+    openaiModel: 'gpt-4o-mini',
+    anthropicModel: 'claude-haiku-4-5',
+    geminiModel: 'gemini-2.5-flash',
+    cliproxyUrl: 'http://127.0.0.1:8317',
+    cliproxyModel: 'claude-sonnet-4-6',
+    readingLanguage: '繁體中文',
+    writingLanguage: 'English',
     enabled: true
   });
 });
