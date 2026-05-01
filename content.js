@@ -416,15 +416,47 @@ document.addEventListener('mousemove', (e) => {
   }
 });
 
-// 監聽 Ctrl 鍵按下
-document.addEventListener('keydown', async (e) => {
-  // 只監聽單獨的 Ctrl 鍵（不含其他修飾鍵）
-  // 注意：macOS 上也使用 Ctrl，而非 Cmd（避免誤觸發）
-  const isCtrlOnly = (e.key === 'Control' && e.ctrlKey && !e.shiftKey && !e.altKey && !e.metaKey);
+// 監聽 Ctrl 「短按」觸發 hover 翻譯
+//
+// ⚠️ 為何用 keyup 不用 keydown：
+// 按複合快捷鍵（如 Ctrl+Cmd+C 截圖）時，第一個 Ctrl keydown
+// 事件 e.metaKey 還是 false（用戶還沒按到 Cmd）。在 keydown
+// 判斷會誤觸發翻譯。改用 keyup 偵測「tap Ctrl」模式：
+//   - keydown 只記錄 Ctrl 開始時間
+//   - 期間若按下任何其他鍵 → 標記為「複合」
+//   - keyup 時若沒被汙染、按住時間 < 500ms → tap → 觸發翻譯
+let ctrlPressedAt = null;
+let ctrlContaminated = false;
 
-  if (isCtrlOnly && hoveredElement && !isHoverTranslationActive) {
-    console.log('[Content] Ctrl pressed, hoveredElement:', hoveredElement);
-    e.preventDefault();
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Control' && !e.shiftKey && !e.altKey && !e.metaKey) {
+    // Ctrl 單獨按下（首次）
+    if (ctrlPressedAt === null) {
+      ctrlPressedAt = Date.now();
+      ctrlContaminated = false;
+    }
+    return;
+  }
+
+  // Ctrl 按住期間又按了別的鍵 → 標記為複合快捷鍵
+  if (ctrlPressedAt !== null) {
+    ctrlContaminated = true;
+  }
+});
+
+document.addEventListener('keyup', async (e) => {
+  if (e.key !== 'Control' || ctrlPressedAt === null) return;
+
+  const duration = Date.now() - ctrlPressedAt;
+  const wasTap = duration < 500 && !ctrlContaminated;
+
+  // reset state
+  ctrlPressedAt = null;
+  ctrlContaminated = false;
+
+  // 只在「短按 Ctrl」且 hover 在段落上時觸發
+  if (wasTap && hoveredElement && !isHoverTranslationActive) {
+    console.log('[Content] Ctrl tap (', duration, 'ms) → trigger hover translation');
     await handleHoverTranslation();
   }
 });
