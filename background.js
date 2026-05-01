@@ -193,6 +193,54 @@ async function getUsageStats() {
 
 /**
  * ============================================
+ * Glossary — 已知誤翻 post-process 修正
+ * ============================================
+ *
+ * 跨 provider（Google free / Ollama / 未來 BYOK）一致套用。
+ * 純 string replace，最簡單最可靠。
+ *
+ * 邊界處理：中文/日文無空格，String.prototype.replaceAll 直接用。
+ * 注意：post-fix 對所有 occurrence 替換，假設這些誤翻在實務中
+ * 99% 都是該還原的（IT 內容情境）。如果你讀法律文件需要
+ * 「法學碩士」原文，把對應 fix 從 user glossary 移除即可。
+ */
+const DEFAULT_GLOSSARY_FIXES = {
+  '法學碩士': 'LLM',
+  '法律碩士': 'LLM',
+};
+
+/**
+ * 從 chrome.storage.sync 讀 user glossary，與 default 合併。
+ * User fix 優先（可覆寫 default，例如把 '法學碩士' map 成你想要的別的詞）。
+ */
+async function getMergedGlossaryFixes() {
+  const data = await chrome.storage.sync.get({ glossaryFixes: {} });
+  return { ...DEFAULT_GLOSSARY_FIXES, ...(data.glossaryFixes || {}) };
+}
+
+/**
+ * 對翻譯結果套用 glossary 修正。
+ * 失敗 / 空 dict 時直接回傳原文。
+ */
+async function applyGlossary(text) {
+  if (!text) return text;
+  try {
+    const fixes = await getMergedGlossaryFixes();
+    let result = text;
+    for (const [wrong, right] of Object.entries(fixes)) {
+      if (wrong && right !== undefined) {
+        result = result.split(wrong).join(right); // 等同 replaceAll，相容性更廣
+      }
+    }
+    return result;
+  } catch (e) {
+    console.warn('[Background] applyGlossary failed:', e);
+    return text;
+  }
+}
+
+/**
+ * ============================================
  * 翻譯引擎
  * ============================================
  */
@@ -235,7 +283,7 @@ async function translateWithGoogle(text, targetLang = '繁體中文') {
     const translations = data[0].map(item => item[0]).join('');
 
     console.log('[Background] Google translation successful');
-    return translations;
+    return await applyGlossary(translations);
   } catch (error) {
     console.error('[Background] Google Translate error:', error);
     throw error;
@@ -290,7 +338,7 @@ ${text}`;
 
     const data = await response.json();
     console.log('[Background] Translation successful');
-    return data.response.trim();
+    return await applyGlossary(data.response.trim());
   } catch (error) {
     console.error('[Background] Ollama API error:', error);
     console.error('[Background] Error details:', error.message);
