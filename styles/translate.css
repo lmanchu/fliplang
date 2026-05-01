@@ -4,24 +4,12 @@
  * 雙語對照樣式
  */
 
-/* 翻譯容器 - 雙語對照
- * 虛線框讓使用者一眼分辨「這段是被翻譯過的」
- * 用 :where() 降低 specificity，避免 host 站台 layout 被破壞
+/* 翻譯容器 — 整頁模式雙語對照
+ * 沉浸式風格：原文不動，只框「譯文」block
  */
 .iris-translation-container {
   display: inline-block;
   position: relative;
-  border: 1px dashed rgba(102, 126, 234, 0.45);
-  border-radius: 6px;
-  padding: 4px 8px;
-  margin: 2px 0;
-  background: rgba(102, 126, 234, 0.03);
-  transition: border-color 0.15s ease, background 0.15s ease;
-}
-
-.iris-translation-container:hover {
-  border-color: rgba(102, 126, 234, 0.75);
-  background: rgba(102, 126, 234, 0.06);
 }
 
 .iris-original {
@@ -31,29 +19,28 @@
   line-height: 1.6;
 }
 
+/* 譯文 block — 用虛線框包起來（沉浸式風格） */
 .iris-translated {
   display: block;
   color: #666;
   font-size: 0.9em;
   font-style: italic;
-  margin-top: 4px;
-  padding-left: 8px;
-  border-left: 3px solid #667eea;
+  margin-top: 6px;
+  padding: 6px 10px;
+  border: 1px dashed rgba(102, 126, 234, 0.45);
+  border-radius: 6px;
+  background: rgba(102, 126, 234, 0.03);
   line-height: 1.5;
 }
 
-/* Dark mode — 虛線框在深色站台不刺眼 */
+/* Dark mode */
 @media (prefers-color-scheme: dark) {
-  .iris-translation-container {
+  .iris-original { color: #e5e7eb; }
+  .iris-translated {
+    color: #9ca3af;
     border-color: rgba(168, 184, 255, 0.4);
     background: rgba(168, 184, 255, 0.05);
   }
-  .iris-translation-container:hover {
-    border-color: rgba(168, 184, 255, 0.7);
-    background: rgba(168, 184, 255, 0.09);
-  }
-  .iris-original { color: #e5e7eb; }
-  .iris-translated { color: #9ca3af; border-left-color: #a8b8ff; }
 }
 
 /* 翻譯提示框（選取翻譯用） */
@@ -250,41 +237,31 @@
   line-height: inherit;
 }
 
+/* 譯句 block — Hover 逐句模式，只框譯文（沉浸式風格） */
 .iris-sentence-translated {
   display: block;
   color: #667eea;
   font-size: 0.9em;
   line-height: 1.5;
-  margin: 2px 0 6px 0;
-  padding-left: 8px;
-  border-left: 2px solid #667eea;
+  margin: 6px 0;
+  padding: 6px 10px;
+  border: 1px dashed rgba(102, 126, 234, 0.45);
+  border-radius: 6px;
+  background: rgba(102, 126, 234, 0.03);
   font-style: italic;
   opacity: 0.95;
 }
 
-/* Hover 翻譯段落 — 整段虛線框讓使用者知道「這段被翻譯過」 */
+/* Hover 翻譯段落 — 不加任何視覺，原文保持原樣 */
 .iris-hover-translated {
-  border: 1px dashed rgba(102, 126, 234, 0.45);
-  border-radius: 6px;
-  padding: 6px 10px;
-  margin: 4px 0;
-  background: rgba(102, 126, 234, 0.03);
-  transition: border-color 0.15s ease, background 0.15s ease;
-}
-
-.iris-hover-translated:hover {
-  border-color: rgba(102, 126, 234, 0.75);
-  background: rgba(102, 126, 234, 0.06);
+  /* placeholder for future hooks; visual handled by .iris-sentence-translated */
 }
 
 @media (prefers-color-scheme: dark) {
-  .iris-hover-translated {
+  .iris-sentence-translated {
+    color: #a8b8ff;
     border-color: rgba(168, 184, 255, 0.4);
     background: rgba(168, 184, 255, 0.05);
-  }
-  .iris-hover-translated:hover {
-    border-color: rgba(168, 184, 255, 0.7);
-    background: rgba(168, 184, 255, 0.09);
   }
 }
 
