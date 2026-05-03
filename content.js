@@ -27,22 +27,28 @@ const SITE_SCOPES = {
     containers: ['[data-testid="tweetText"]'],
   },
   'linkedin.com': {
-    // All selectors MUST be anchored inside a feed/comment wrapper class —
-    // these classes don't appear in profile sidebar or right rail or top nav.
-    // Belt-and-suspenders: never trust class name alone, always require an
-    // ancestor that's clearly part of the post stream.
+    // Use broad, reliable post-wrapper containers (LinkedIn changes inner
+    // class names often, but these wrapper classes have been stable).
     containers: [
-      // Post body (.feed-shared-update-v2 is the gold-standard feed post wrapper)
-      '.feed-shared-update-v2 .feed-shared-update-v2__description',
-      '.feed-shared-update-v2 .feed-shared-inline-show-more-text',
-      // Comments anchored inside comments list (not used by sidebar)
-      '.comments-comments-list .comments-comment-item-content-body',
-      '.comments-comments-list .comments-comment-item__main-content',
-      '.comments-comments-list .update-components-text',
+      '.feed-shared-update-v2',          // primary feed post wrapper
+      '[data-id^="urn:li:activity"]',    // post by URN
+      '.comments-comments-list',          // comments thread
     ],
-    // Extra defense: even if a text node is inside a matched container,
-    // skip it if any ancestor is in this list (aside/nav/header etc.).
-    forbidAncestors: ['aside', 'nav', 'header', '.global-nav', '[role="navigation"]', '[role="complementary"]', '[role="banner"]'],
+    // Within those wrappers, skip these chrome elements — they live INSIDE
+    // posts but are author info / button bars / timestamps we don't want.
+    // Plus top-level layout chrome (sidebar/nav/banner) defensively.
+    forbidAncestors: [
+      'aside', 'nav', 'header',
+      '.global-nav',
+      '[role="navigation"]', '[role="complementary"]', '[role="banner"]',
+      // Post-internal chrome
+      '.feed-shared-actor',              // author name + headline + timestamp
+      '.update-components-actor',        // newer LinkedIn actor wrapper
+      '.social-details-social-counts',   // reaction counts
+      '.feed-shared-social-action-bar',  // Like / Comment / Repost / Send buttons
+      '.social-action-bar',
+      'time',
+    ],
   },
 };
 
@@ -60,14 +66,23 @@ function getDomainScope() {
 
 function getTranslationRoots() {
   const scope = getDomainScope();
-  if (!scope) return [document.body];
-  const roots = [];
-  for (const sel of scope.containers) {
-    document.querySelectorAll(sel).forEach((el) => roots.push(el));
-  }
-  if (roots.length === 0) {
-    console.log('[Content] Site scope matched but no containers found, falling back to body');
+  if (!scope) {
+    console.log('[Content] No site scope — translating whole body');
     return [document.body];
+  }
+  const roots = [];
+  const matchCounts = {};
+  for (const sel of scope.containers) {
+    const matches = document.querySelectorAll(sel);
+    matchCounts[sel] = matches.length;
+    matches.forEach((el) => roots.push(el));
+  }
+  console.log('[Content] Site scope match counts:', matchCounts);
+  if (roots.length === 0) {
+    // CRITICAL: do NOT fall back to body — that translates the whole page
+    // including sidebar / right rail / nav. If selectors don't hit, just skip.
+    console.warn('[Content] Site scope matched but no containers found — skipping translation. Selectors may need updating for current LinkedIn/X DOM.');
+    return [];
   }
   console.log('[Content] Site-scoped translation:', roots.length, 'container(s)');
   return roots;

@@ -5,6 +5,25 @@ All notable changes to Iris Immersive Translate will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.7] - 2026-05-04
+
+### Fixed
+- **Critical: kill body-fallback bug** — when SITE_SCOPES matched a domain
+  (e.g. linkedin.com) but inner selectors hit zero elements (e.g. LinkedIn
+  changed `.feed-shared-update-v2__description` class name), code fell back
+  to `document.body` → translated the WHOLE page including sidebar / right
+  rail / promo banner. Now it returns `[]` and skips translation, with a
+  console warning naming the selectors that missed.
+- **LinkedIn**: containers reverted to broad post-wrappers
+  (`.feed-shared-update-v2`, `[data-id^="urn:li:activity"]`,
+  `.comments-comments-list`) which match reliably even when LinkedIn churns
+  inner classes. Author area / button bars / timestamps inside posts are
+  filtered out by expanded `forbidAncestors` list (now includes
+  `.feed-shared-actor`, `.update-components-actor`,
+  `.feed-shared-social-action-bar`, `time`, etc.).
+- Added diagnostic console log of per-selector match counts to help debug
+  future LinkedIn DOM churn.
+
 ## [1.3.6] - 2026-05-04
 
 ### Fixed
