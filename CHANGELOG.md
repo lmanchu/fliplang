@@ -5,6 +5,19 @@ All notable changes to Iris Immersive Translate will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.1] - 2026-05-04
+
+### Added
+- **Per-site scoped translation**: x.com / twitter.com / linkedin.com 只翻譯
+  貼文內容，不再翻 sidebar nav / right rail / 廣告。
+  - x.com: `article[data-testid="tweet"]`
+  - linkedin.com: `div.feed-shared-update-v2`, `[data-id^="urn:li:activity"]`,
+    `div.update-components-update-v2`
+- 未列入 `SITE_SCOPES` 的 domain 維持原本 full-page 翻譯行為。
+
+### How to extend
+編輯 `content.js` 開頭的 `SITE_SCOPES` map 加新站點。
+
 ## [Unreleased]
 
 ### Planned Features

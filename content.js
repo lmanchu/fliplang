@@ -10,6 +10,52 @@
 
 console.log('[Iris Translate] Content script loaded');
 
+/**
+ * Per-site translation scopes — only translate inside these container selectors.
+ * Falls back to <body> if domain not listed (full-page translate as before).
+ *
+ * Why: 沉浸式翻譯 pattern. On x.com / LinkedIn we want only post content
+ * translated, not sidebar nav / right rail / ads.
+ */
+const SITE_SCOPES = {
+  'x.com': {
+    containers: ['article[data-testid="tweet"]'],
+  },
+  'twitter.com': {
+    containers: ['article[data-testid="tweet"]'],
+  },
+  'linkedin.com': {
+    containers: [
+      'div.feed-shared-update-v2',
+      '[data-id^="urn:li:activity"]',
+      'div.update-components-update-v2',
+    ],
+  },
+};
+
+function getDomainScope() {
+  const host = window.location.hostname.replace(/^www\./, '');
+  for (const key of Object.keys(SITE_SCOPES)) {
+    if (host === key || host.endsWith('.' + key)) return SITE_SCOPES[key];
+  }
+  return null;
+}
+
+function getTranslationRoots() {
+  const scope = getDomainScope();
+  if (!scope) return [document.body];
+  const roots = [];
+  for (const sel of scope.containers) {
+    document.querySelectorAll(sel).forEach((el) => roots.push(el));
+  }
+  if (roots.length === 0) {
+    console.log('[Content] Site scope matched but no containers found, falling back to body');
+    return [document.body];
+  }
+  console.log('[Content] Site-scoped translation:', roots.length, 'container(s)');
+  return roots;
+}
+
 // 翻譯狀態
 let isTranslating = false;
 let translationCache = new Map();
@@ -82,8 +128,12 @@ async function handlePageTranslation() {
   showNotification('正在翻譯頁面...', 'info');
 
   try {
-    // 找到所有需要翻譯的文字節點
-    const textNodes = getAllTextNodes(document.body);
+    // Per-site scope: only translate inside post containers on x.com / linkedin.
+    const roots = getTranslationRoots();
+    const textNodes = [];
+    for (const root of roots) {
+      textNodes.push(...getAllTextNodes(root));
+    }
 
     console.log('[Content] Found text nodes:', textNodes.length);
 
