@@ -5,6 +5,20 @@ All notable changes to Iris Immersive Translate will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.6] - 2026-05-04
+
+### Fixed
+- **LinkedIn sidebar / right rail / top promo banner 仍被翻譯** (regression
+  from earlier "main scope" approach). Two layers of defense:
+  1. **Anchor selectors in feed wrapper class** — all containers must be
+     inside `.feed-shared-update-v2` or `.comments-comments-list` (these
+     classes don't appear in profile sidebar / right rail / nav).
+  2. **forbidAncestors blocklist** — even if a selector somehow matches,
+     reject text nodes whose ancestor is `aside`, `nav`, `header`,
+     `[role="navigation"]`, `[role="complementary"]`, `[role="banner"]`.
+- LinkedIn now: only main feed posts + their comment threads get translated.
+  Yichen Chu profile card, Today's puzzles, For Business banner — untouched.
+
 ## [1.3.5] - 2026-05-04
 
 ### Added

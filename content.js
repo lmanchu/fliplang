@@ -27,19 +27,22 @@ const SITE_SCOPES = {
     containers: ['[data-testid="tweetText"]'],
   },
   'linkedin.com': {
-    // Scope to <main> to skip profile sidebar / right rail / nav widgets.
-    // Within main, target feed post body + comment bodies.
+    // All selectors MUST be anchored inside a feed/comment wrapper class —
+    // these classes don't appear in profile sidebar or right rail or top nav.
+    // Belt-and-suspenders: never trust class name alone, always require an
+    // ancestor that's clearly part of the post stream.
     containers: [
-      // Post body
-      'main [data-id^="urn:li:activity"] .feed-shared-update-v2__description',
-      'main [data-id^="urn:li:activity"] .feed-shared-inline-show-more-text',
-      'main [data-id^="urn:li:activity"] .update-components-text',
-      // Comments (main thread + replies)
-      'main .comments-comment-item-content-body',
-      'main .comments-comment-item__main-content',
-      'main .comments-comment-entity .update-components-text',
-      'main .comments-reply-item .update-components-text',
+      // Post body (.feed-shared-update-v2 is the gold-standard feed post wrapper)
+      '.feed-shared-update-v2 .feed-shared-update-v2__description',
+      '.feed-shared-update-v2 .feed-shared-inline-show-more-text',
+      // Comments anchored inside comments list (not used by sidebar)
+      '.comments-comments-list .comments-comment-item-content-body',
+      '.comments-comments-list .comments-comment-item__main-content',
+      '.comments-comments-list .update-components-text',
     ],
+    // Extra defense: even if a text node is inside a matched container,
+    // skip it if any ancestor is in this list (aside/nav/header etc.).
+    forbidAncestors: ['aside', 'nav', 'header', '.global-nav', '[role="navigation"]', '[role="complementary"]', '[role="banner"]'],
   },
 };
 
@@ -352,6 +355,10 @@ async function requestTranslation(text, mode = 'reading', explicitTargetLang = n
  * 獲取所有文字節點
  */
 function getAllTextNodes(element) {
+  // Cache forbidAncestors selector list per call (cheap)
+  const scope = getDomainScope();
+  const forbidSelectors = (scope && scope.forbidAncestors) || null;
+
   const textNodes = [];
   const walker = document.createTreeWalker(
     element,
@@ -369,6 +376,13 @@ function getAllTextNodes(element) {
 
         if (parent.classList.contains('iris-translation')) {
           return NodeFilter.FILTER_REJECT;
+        }
+
+        // Forbid-ancestor defense: walk up and reject if any ancestor matches.
+        if (forbidSelectors) {
+          for (const sel of forbidSelectors) {
+            if (parent.closest(sel)) return NodeFilter.FILTER_REJECT;
+          }
         }
 
         const text = node.textContent.trim();
