@@ -27,27 +27,20 @@ const SITE_SCOPES = {
     containers: ['[data-testid="tweetText"]'],
   },
   'linkedin.com': {
-    // Use broad, reliable post-wrapper containers (LinkedIn changes inner
-    // class names often, but these wrapper classes have been stable).
+    // Multiple fallback selectors — LinkedIn class names churn frequently.
+    // First match wins; even one match per post is enough.
     containers: [
-      '.feed-shared-update-v2',          // primary feed post wrapper
-      '[data-id^="urn:li:activity"]',    // post by URN
-      '.comments-comments-list',          // comments thread
+      '[data-urn^="urn:li:activity"]',   // newest LinkedIn DOM
+      '[data-id^="urn:li:activity"]',    // older LinkedIn DOM
+      '.feed-shared-update-v2',          // legacy wrapper class
+      '.fie-impression-container',       // wrapper used in some layouts
+      '.comments-comments-list',          // comments thread (broad)
     ],
-    // Within those wrappers, skip these chrome elements — they live INSIDE
-    // posts but are author info / button bars / timestamps we don't want.
-    // Plus top-level layout chrome (sidebar/nav/banner) defensively.
+    // Defensive: only the most certain layout chrome. Don't over-restrict.
     forbidAncestors: [
       'aside', 'nav', 'header',
       '.global-nav',
-      '[role="navigation"]', '[role="complementary"]', '[role="banner"]',
-      // Post-internal chrome
-      '.feed-shared-actor',              // author name + headline + timestamp
-      '.update-components-actor',        // newer LinkedIn actor wrapper
-      '.social-details-social-counts',   // reaction counts
-      '.feed-shared-social-action-bar',  // Like / Comment / Repost / Send buttons
-      '.social-action-bar',
-      'time',
+      '[role="navigation"]', '[role="banner"]',
     ],
   },
 };

@@ -5,6 +5,21 @@ All notable changes to Iris Immersive Translate will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.8] - 2026-05-04
+
+### Fixed
+- **v1.3.7 over-corrected**: 主 post 也沒翻譯了。原因 (a) LinkedIn 改 DOM
+  let `[data-id^="urn:li:activity"]` 等 selectors 命中 0，加上 v1.3.7 已禁
+  body fallback → 完全不翻；或 (b) `forbidAncestors` 加了 `.feed-shared-actor`
+  / `.update-components-actor` / `[role="complementary"]` 等過於激進的條
+  目把 post body 也擋掉了。
+- 現在 LinkedIn containers 加更多 fallback：`[data-urn^="urn:li:activity"]`
+  (新版 LinkedIn DOM)、`.fie-impression-container` (某些 layout)。
+- forbidAncestors 縮回最小：只保留 `aside/nav/header/.global-nav/
+  [role="navigation"]/[role="banner"]` — 這些是絕對的 layout chrome。
+  作者名/按鈕欄如果還是被翻，下一輪 incremental 加單一 selector 而不
+  一次堆 6 個。
+
 ## [1.3.7] - 2026-05-04
 
 ### Fixed
