@@ -27,20 +27,20 @@ const SITE_SCOPES = {
     containers: ['[data-testid="tweetText"]'],
   },
   'linkedin.com': {
-    // Multiple fallback selectors — LinkedIn class names churn frequently.
-    // First match wins; even one match per post is enough.
+    // ARIA-first + multiple class fallbacks. LinkedIn churns class names,
+    // but role="article" should be stable on feed posts.
     containers: [
+      '[role="article"]',                // ARIA — should always work
       '[data-urn^="urn:li:activity"]',   // newest LinkedIn DOM
       '[data-id^="urn:li:activity"]',    // older LinkedIn DOM
       '.feed-shared-update-v2',          // legacy wrapper class
-      '.fie-impression-container',       // wrapper used in some layouts
-      '.comments-comments-list',          // comments thread (broad)
+      '.fie-impression-container',       // some layouts
+      '.comments-comments-list',          // comments thread
     ],
-    // Defensive: only the most certain layout chrome. Don't over-restrict.
     forbidAncestors: [
       'aside', 'nav', 'header',
       '.global-nav',
-      '[role="navigation"]', '[role="banner"]',
+      '[role="navigation"]', '[role="banner"]', '[role="complementary"]',
     ],
   },
 };
@@ -72,9 +72,15 @@ function getTranslationRoots() {
   }
   console.log('[Content] Site scope match counts:', matchCounts);
   if (roots.length === 0) {
-    // CRITICAL: do NOT fall back to body — that translates the whole page
-    // including sidebar / right rail / nav. If selectors don't hit, just skip.
-    console.warn('[Content] Site scope matched but no containers found — skipping translation. Selectors may need updating for current LinkedIn/X DOM.');
+    // No specific containers matched — fall back to <main> (NOT body).
+    // <main> excludes sidebar / right rail / top nav by HTML semantics, so
+    // even if forbidAncestors misses something, we don't translate chrome.
+    const mainEl = document.querySelector('main');
+    if (mainEl) {
+      console.warn('[Content] No specific containers matched — falling back to <main>');
+      return [mainEl];
+    }
+    console.warn('[Content] No containers, no <main> — skipping translation');
     return [];
   }
   console.log('[Content] Site-scoped translation:', roots.length, 'container(s)');
