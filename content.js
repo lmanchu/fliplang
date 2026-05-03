@@ -8,7 +8,7 @@
  * 4. 處理用戶交互
  */
 
-console.log('[Iris Translate] Content script loaded');
+console.log('[Fliplang] content.js v1.3.10 loaded — host:', window.location.hostname);
 
 /**
  * Per-site translation scopes — only translate inside these container selectors.
