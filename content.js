@@ -19,16 +19,19 @@ console.log('[Iris Translate] Content script loaded');
  */
 const SITE_SCOPES = {
   'x.com': {
-    containers: ['article[data-testid="tweet"]'],
+    // Narrowed to tweetText only — skips author display name, handle, timestamp,
+    // retweet/like counts (proper nouns / numbers don't need translation).
+    containers: ['[data-testid="tweetText"]'],
   },
   'twitter.com': {
-    containers: ['article[data-testid="tweet"]'],
+    containers: ['[data-testid="tweetText"]'],
   },
   'linkedin.com': {
+    // LinkedIn post body text. Skips author name + headline + reaction counts.
     containers: [
-      'div.feed-shared-update-v2',
-      '[data-id^="urn:li:activity"]',
-      'div.update-components-update-v2',
+      '.feed-shared-update-v2__description',
+      '.update-components-text',
+      '.feed-shared-inline-show-more-text',
     ],
   },
 };

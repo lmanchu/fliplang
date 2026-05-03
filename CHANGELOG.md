@@ -5,6 +5,15 @@ All notable changes to Iris Immersive Translate will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.3] - 2026-05-04
+
+### Changed
+- **Narrower scope selectors** — skip author display name, handle, timestamp,
+  reaction counts. Only translate the actual post text body.
+  - x.com / twitter.com: `[data-testid="tweetText"]` (was `article[data-testid="tweet"]`)
+  - linkedin.com: `.feed-shared-update-v2__description`, `.update-components-text`,
+    `.feed-shared-inline-show-more-text` (was `div.feed-shared-update-v2`)
+
 ## [1.3.2] - 2026-05-04
 
 ### Added
