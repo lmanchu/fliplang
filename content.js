@@ -27,14 +27,19 @@ const SITE_SCOPES = {
     containers: ['[data-testid="tweetText"]'],
   },
   'linkedin.com': {
-    // LinkedIn post body text. Skips author name + headline + reaction counts.
+    // Scope to <main> to skip profile sidebar / right rail / nav widgets.
+    // Within main, target feed post text only.
     containers: [
-      '.feed-shared-update-v2__description',
-      '.update-components-text',
-      '.feed-shared-inline-show-more-text',
+      'main [data-id^="urn:li:activity"] .feed-shared-update-v2__description',
+      'main [data-id^="urn:li:activity"] .feed-shared-inline-show-more-text',
+      'main [data-id^="urn:li:activity"] .update-components-text',
     ],
   },
 };
+
+// Skip text nodes that are just URLs / handles — these don't translate.
+const URL_LIKE_RE = /^(https?:\/\/|www\.)\S+$/i;
+const HANDLE_LIKE_RE = /^@[A-Za-z0-9_]+$/;
 
 function getDomainScope() {
   const host = window.location.hostname.replace(/^www\./, '');
@@ -152,7 +157,7 @@ async function handlePageTranslation() {
           const text = node.textContent.trim();
 
           // 跳過太短或純數字的文字
-          if (text.length < 10 || /^[\d\s\p{P}]+$/u.test(text)) {
+          if (text.length < 10 || /^[\d\s\p{P}]+$/u.test(text) || URL_LIKE_RE.test(text) || HANDLE_LIKE_RE.test(text)) {
             return;
           }
 
@@ -258,7 +263,7 @@ async function flushScopeQueue() {
     await Promise.all(
       batch.map(async (node) => {
         const text = node.textContent.trim();
-        if (text.length < 10 || /^[\d\s\p{P}]+$/u.test(text)) return;
+        if (text.length < 10 || /^[\d\s\p{P}]+$/u.test(text) || URL_LIKE_RE.test(text) || HANDLE_LIKE_RE.test(text)) return;
         try {
           const translation = await requestTranslation(text);
           insertTranslation(node, text, translation);

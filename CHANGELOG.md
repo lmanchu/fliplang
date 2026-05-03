@@ -5,6 +5,16 @@ All notable changes to Iris Immersive Translate will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.4] - 2026-05-04
+
+### Fixed
+- **LinkedIn 左側 profile sidebar 不再被翻譯**: containers 限定在
+  `main [data-id^="urn:li:activity"]` 子樹內，不會誤命中 sidebar 的
+  `.update-components-text`。
+- **URL 不再被翻譯**: 加 `URL_LIKE_RE` (http://, www.) 過濾。
+  例如 `http://dyne.org/cjit` 之前會丟去翻譯，現在 skip。
+- **@handle 不翻譯**: `@username` pure handle skip。
+
 ## [1.3.3] - 2026-05-04
 
 ### Changed
