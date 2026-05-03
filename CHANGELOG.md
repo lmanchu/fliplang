@@ -5,6 +5,17 @@ All notable changes to Iris Immersive Translate will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.2] - 2026-05-04
+
+### Added
+- **Auto-translate on infinite scroll** (沉浸式翻譯 parity): MutationObserver
+  watches for new tweets/posts on scope domains (x.com / linkedin.com).
+  After initial translatePage() finishes, new posts that scroll into view
+  are auto-translated within ~800ms.
+  - 800ms debounce avoids API spam during fast scroll
+  - Skip de-dup: containers already with `.iris-translation-container` not re-translated
+  - Observer auto-stops on translation cancel / strip
+
 ## [1.3.1] - 2026-05-04
 
 ### Added

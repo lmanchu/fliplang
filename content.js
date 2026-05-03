@@ -170,10 +170,100 @@ async function handlePageTranslation() {
 
     isTranslating = false;
     showNotification(`翻譯完成！已翻譯 ${translated} 個段落`, 'success');
+
+    // Auto-extend: watch for new tweets/posts as user scrolls
+    if (getDomainScope()) startScopeObserver();
   } catch (error) {
     console.error('[Content] Page translation failed:', error);
     isTranslating = false;
     showNotification('翻譯失敗: ' + error.message, 'error');
+  }
+}
+
+/**
+ * MutationObserver — auto-translate new posts that appear via infinite scroll.
+ * Only active on SITE_SCOPES domains. Started after first translatePage() finishes.
+ */
+let scopeObserver = null;
+const pendingScopeRoots = new Set();
+let scopeFlushTimer = null;
+const SCOPE_FLUSH_DEBOUNCE_MS = 800;
+
+function startScopeObserver() {
+  if (scopeObserver) return;
+  const scope = getDomainScope();
+  if (!scope) return;
+
+  scopeObserver = new MutationObserver((mutations) => {
+    for (const m of mutations) {
+      for (const node of m.addedNodes) {
+        if (node.nodeType !== 1) continue; // ELEMENT_NODE only
+        for (const sel of scope.containers) {
+          if (typeof node.matches === 'function' && node.matches(sel)) {
+            pendingScopeRoots.add(node);
+          }
+          if (typeof node.querySelectorAll === 'function') {
+            node.querySelectorAll(sel).forEach((el) => pendingScopeRoots.add(el));
+          }
+        }
+      }
+    }
+    scheduleScopeFlush();
+  });
+
+  scopeObserver.observe(document.body, { childList: true, subtree: true });
+  console.log('[Content] Scope observer started');
+}
+
+function stopScopeObserver() {
+  if (scopeObserver) {
+    scopeObserver.disconnect();
+    scopeObserver = null;
+    console.log('[Content] Scope observer stopped');
+  }
+  pendingScopeRoots.clear();
+  if (scopeFlushTimer) {
+    clearTimeout(scopeFlushTimer);
+    scopeFlushTimer = null;
+  }
+}
+
+function scheduleScopeFlush() {
+  if (scopeFlushTimer) return;
+  scopeFlushTimer = setTimeout(flushScopeQueue, SCOPE_FLUSH_DEBOUNCE_MS);
+}
+
+async function flushScopeQueue() {
+  scopeFlushTimer = null;
+  if (pendingScopeRoots.size === 0) return;
+
+  const roots = Array.from(pendingScopeRoots);
+  pendingScopeRoots.clear();
+
+  const textNodes = [];
+  for (const root of roots) {
+    // Skip if this root already has a translation inserted (de-dup)
+    if (root.querySelector && root.querySelector('.iris-translation-container')) continue;
+    textNodes.push(...getAllTextNodes(root));
+  }
+  if (textNodes.length === 0) return;
+
+  console.log('[Content] Auto-translating', textNodes.length, 'new node(s)');
+  const batchSize = 5;
+  for (let i = 0; i < textNodes.length; i += batchSize) {
+    const batch = textNodes.slice(i, i + batchSize);
+    await Promise.all(
+      batch.map(async (node) => {
+        const text = node.textContent.trim();
+        if (text.length < 10 || /^[\d\s\p{P}]+$/u.test(text)) return;
+        try {
+          const translation = await requestTranslation(text);
+          insertTranslation(node, text, translation);
+        } catch (e) {
+          console.warn('[Content] Auto-translate node failed:', e.message);
+        }
+      })
+    );
   }
 }
 
@@ -413,6 +503,9 @@ function showNotification(message, type = 'info') {
  * 移除所有翻譯
  */
 function removeAllTranslations() {
+  // Stop auto-translate-on-scroll first to avoid race with strip
+  stopScopeObserver();
+
   const translations = document.querySelectorAll('.iris-translation-container');
   translations.forEach((container) => {
     const originalText = container.querySelector('.iris-original').textContent;
