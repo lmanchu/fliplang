@@ -5,6 +5,16 @@ All notable changes to Iris Immersive Translate will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.5] - 2026-05-04
+
+### Added
+- LinkedIn **comments** also translated (main thread + replies). Selectors:
+  - `.comments-comment-item-content-body`
+  - `.comments-comment-item__main-content`
+  - `.comments-comment-entity .update-components-text`
+  - `.comments-reply-item .update-components-text`
+- All scoped under `main` so sidebar/right rail still skipped.
+
 ## [1.3.4] - 2026-05-04
 
 ### Fixed

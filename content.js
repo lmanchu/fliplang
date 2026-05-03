@@ -28,11 +28,17 @@ const SITE_SCOPES = {
   },
   'linkedin.com': {
     // Scope to <main> to skip profile sidebar / right rail / nav widgets.
-    // Within main, target feed post text only.
+    // Within main, target feed post body + comment bodies.
     containers: [
+      // Post body
       'main [data-id^="urn:li:activity"] .feed-shared-update-v2__description',
       'main [data-id^="urn:li:activity"] .feed-shared-inline-show-more-text',
       'main [data-id^="urn:li:activity"] .update-components-text',
+      // Comments (main thread + replies)
+      'main .comments-comment-item-content-body',
+      'main .comments-comment-item__main-content',
+      'main .comments-comment-entity .update-components-text',
+      'main .comments-reply-item .update-components-text',
     ],
   },
 };
